@@ -5,7 +5,7 @@ export const friendService = {
     const response = await api.get('/friends');
     return response.data;
   },
-
+    
   getPendingRequests: async () => {
     const response = await api.get('/friends/requests');
     return response.data;
