@@ -5,7 +5,7 @@ import { Provider as PaperProvider } from 'react-native-paper';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import AppNavigator from './navigation/AppNavigator';
-
+   
 const theme = {
   colors: {
     primary: '#2E7D32',
