@@ -248,6 +248,8 @@ exports.leaveGroup = async (req, res) => {
       });
     }
     
+    const currentMember = group.members[memberIndex];
+    
     // Check if user has unsettled debts
     const balances = await group.getBalances();
     const userBalance = balances[req.user.id.toString()] || 0;

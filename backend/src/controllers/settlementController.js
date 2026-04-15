@@ -31,6 +31,17 @@ exports.createSettlement = async (req, res) => {
       });
     }
     
+    // Verify user is a member of this group
+    const isMember = group.members.some(
+      m => m.userId.toString() === req.user.id
+    );
+    if (!isMember) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not a member of this group'
+      });
+    }
+    
     // Create settlement
     const settlement = await Settlement.create({
       groupId,
@@ -154,6 +165,24 @@ exports.getPaymentOptions = async (req, res) => {
 exports.getGroupSettlements = async (req, res) => {
   try {
     const { groupId } = req.params;
+    
+    // Verify user is a member of this group
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: 'Group not found'
+      });
+    }
+    const isMember = group.members.some(
+      m => m.userId.toString() === req.user.id
+    );
+    if (!isMember) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not a member of this group'
+      });
+    }
     
     const settlements = await Settlement.find({ groupId })
       .populate('fromUser', 'name avatar')

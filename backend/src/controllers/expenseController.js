@@ -110,16 +110,33 @@ exports.getGroupExpenses = async (req, res) => {
       });
     }
     
-    // Build query
+    // Verify user is a member of this group
+    const isMember = group.members.some(
+      m => m.userId.toString() === req.user.id
+    );
+    if (!isMember) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not a member of this group'
+      });
+    }
+    
+    // Build query - sanitize category to prevent NoSQL injection
     const query = { groupId, isDeleted: false };
-    if (category) query.category = category;
+    if (category && typeof category === 'string') {
+      query.category = category;
+    }
+    
+    // Sanitize pagination params
+    const safeLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
+    const safePage = Math.max(parseInt(page) || 1, 1);
     
     const expenses = await Expense.find(query)
       .populate('paidBy', 'name avatar')
       .populate('splits.userId', 'name avatar')
       .sort('-date')
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .limit(safeLimit)
+      .skip((safePage - 1) * safeLimit);
     
     const total = await Expense.countDocuments(query);
     
@@ -127,10 +144,10 @@ exports.getGroupExpenses = async (req, res) => {
       success: true,
       data: expenses,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: safePage,
+        limit: safeLimit,
         total,
-        pages: Math.ceil(total / limit)
+        pages: Math.ceil(total / safeLimit)
       }
     });
   } catch (error) {

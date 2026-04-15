@@ -29,8 +29,10 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE']
+    origin: process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(',')
+      : [],
+    methods: ['GET', 'POST']
   }
 });
 
@@ -47,7 +49,26 @@ const limiter = rateLimit({
 // Middleware
 app.use(helmet());
 app.use(compression());
-app.use(cors());
+
+// CORS - restrict to configured frontend origin
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',')
+  : [];
+app.use(cors({
+  origin: allowedOrigins.length > 0
+    ? (origin, callback) => {
+        // Allow requests with no origin (mobile apps, curl, etc.)
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      }
+    : false,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
+}));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(requestLogger);
@@ -64,27 +85,48 @@ app.use(`/api/${process.env.API_VERSION}/friends`, friendRoutes);
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
-    timestamp: new Date(),
-    uptime: process.uptime()
+    timestamp: new Date()
   });
+});
+
+// Socket.io authentication middleware
+const jwt = require('jsonwebtoken');
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) {
+    return next(new Error('Authentication required'));
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.id;
+    next();
+  } catch (err) {
+    return next(new Error('Invalid token'));
+  }
 });
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  logger.info('New client connected');
+  logger.info(`Client connected: ${socket.userId}`);
   
   socket.on('join-group', (groupId) => {
+    if (typeof groupId !== 'string' || !groupId.match(/^[a-f\d]{24}$/i)) {
+      return;
+    }
     socket.join(`group_${groupId}`);
-    logger.info(`User joined group ${groupId}`);
+    logger.info(`User ${socket.userId} joined group ${groupId}`);
   });
   
   socket.on('leave-group', (groupId) => {
+    if (typeof groupId !== 'string' || !groupId.match(/^[a-f\d]{24}$/i)) {
+      return;
+    }
     socket.leave(`group_${groupId}`);
-    logger.info(`User left group ${groupId}`);
+    logger.info(`User ${socket.userId} left group ${groupId}`);
   });
   
   socket.on('disconnect', () => {
-    logger.info('Client disconnected');
+    logger.info(`Client disconnected: ${socket.userId}`);
   });
 });
 

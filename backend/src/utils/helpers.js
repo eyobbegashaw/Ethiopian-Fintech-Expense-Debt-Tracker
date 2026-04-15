@@ -13,7 +13,8 @@ exports.formatCurrency = (amount, currency = 'ETB') => {
   };
   
   exports.generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    const crypto = require('crypto');
+    return crypto.randomInt(100000, 999999).toString();
   };
   
   exports.calculateAge = (birthDate) => {

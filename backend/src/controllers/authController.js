@@ -127,7 +127,25 @@ exports.updateProfile = async (req, res) => {
     
     if (name) user.name = name;
     if (email) user.email = email;
-    if (settings) user.settings = { ...user.settings, ...settings };
+    
+    // Only allow updating specific settings fields to prevent mass assignment
+    if (settings && typeof settings === 'object') {
+      const allowedSettings = ['currency', 'language', 'theme'];
+      const allowedNotifications = ['email', 'sms', 'push'];
+      
+      for (const key of allowedSettings) {
+        if (settings[key] !== undefined) {
+          user.settings[key] = settings[key];
+        }
+      }
+      if (settings.notifications && typeof settings.notifications === 'object') {
+        for (const key of allowedNotifications) {
+          if (settings.notifications[key] !== undefined) {
+            user.settings.notifications[key] = Boolean(settings.notifications[key]);
+          }
+        }
+      }
+    }
     
     await user.save();
     

@@ -26,9 +26,12 @@ exports.errorHandler = (err, req, res, next) => {
     });
   }
   
-  res.status(err.status || 500).json({
+  const statusCode = err.status || 500;
+  res.status(statusCode).json({
     success: false,
-    message: err.message || 'Server Error'
+    message: statusCode >= 500 && process.env.NODE_ENV === 'production'
+      ? 'Server Error'
+      : err.message || 'Server Error'
   });
 };
 
