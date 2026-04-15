@@ -4,7 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from 'react-native-paper';
 import i18n from '../translations';
-
+     
 // Screens
 import HomeScreen from '../screens/HomeScreen';
 import GroupScreen from '../screens/GroupScreen';
