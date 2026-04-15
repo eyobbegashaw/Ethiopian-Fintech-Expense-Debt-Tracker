@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import {
-  View,
+  View,   
   TextInput,
   Text,
   StyleSheet,
