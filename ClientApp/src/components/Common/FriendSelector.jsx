@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
+  Text,    
   FlatList,
   TouchableOpacity,
   TextInput,
