@@ -5,7 +5,7 @@ export const expenseService = {
     const response = await api.post('/expenses', expenseData);
     return response.data;
   },
-
+   
   getGroupExpenses: async (groupId, page = 1, limit = 20, category = null) => {
     const params = { page, limit };
     if (category) params.category = category;
