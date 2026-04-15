@@ -5,7 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import SplashScreen from '../screens/SplashScreen';
-
+    
 const Stack = createStackNavigator();
 
 const AppNavigator = () => {
