@@ -5,7 +5,7 @@ import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 
 const Stack = createStackNavigator();
-
+     
 const AuthNavigator = () => {
   return (
     <Stack.Navigator
