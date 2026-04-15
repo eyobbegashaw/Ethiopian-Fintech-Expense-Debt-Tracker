@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   Animated,
-  Dimensions,
+  Dimensions,   
   StatusBar,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
