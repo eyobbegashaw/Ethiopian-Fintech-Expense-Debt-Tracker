@@ -7,7 +7,7 @@ export const activityService = {
     });
     return response.data;
   },
-
+     
   getGroupActivities: async (groupId, page = 1, limit = 50) => {
     const response = await api.get(`/activities/group/${groupId}`, {
       params: { page, limit }
