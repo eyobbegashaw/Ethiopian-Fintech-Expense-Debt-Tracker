@@ -4,7 +4,7 @@ export const authService = {
   login: async (phone, password) => {
     const response = await api.post('/auth/login', { phone, password });
     return response.data;
-  },
+  },   
 
   register: async (userData) => {
     const response = await api.post('/auth/register', userData);
