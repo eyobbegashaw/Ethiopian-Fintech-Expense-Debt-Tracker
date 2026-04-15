@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
-
+   
 const DEFAULT_API_URL = 'http://localhost:3000/api/v1';
 
 const resolveApiUrl = () => {
