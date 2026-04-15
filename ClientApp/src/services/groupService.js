@@ -5,7 +5,7 @@ export const groupService = {
     const response = await api.get('/groups');
     return response.data;
   },
-
+    
   getGroup: async (groupId) => {
     const response = await api.get(`/groups/${groupId}`);
     return response.data;
