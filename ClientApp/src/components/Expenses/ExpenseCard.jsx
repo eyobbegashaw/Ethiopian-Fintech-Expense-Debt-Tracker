@@ -1,7 +1,7 @@
 
 import React from 'react';
 import {
-  View,
+  View,    
   Text,
   StyleSheet,
   TouchableOpacity,
