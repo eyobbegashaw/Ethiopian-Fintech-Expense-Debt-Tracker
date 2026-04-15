@@ -6,7 +6,7 @@ export const calculateUserBalance = (expenses, settlements, userId) => {
       if (expense.paidBy._id === userId) {
         balance += expense.amount;
       }
-      
+         
       const userSplit = expense.splits.find(split => split.userId._id === userId);
       if (userSplit && !userSplit.isPaid) {
         balance -= userSplit.share;
