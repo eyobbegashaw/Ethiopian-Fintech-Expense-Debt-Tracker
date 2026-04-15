@@ -5,7 +5,7 @@ export const settlementService = {
     const response = await api.post('/settlements', settlementData);
     return response.data;
   },
-
+   
   getGroupSettlements: async (groupId) => {
     const response = await api.get(`/settlements/group/${groupId}`);
     return response.data;
