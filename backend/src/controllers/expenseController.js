@@ -1,6 +1,4 @@
 
-
-
 const Expense = require('../models/Expense');
 const Group = require('../models/Group');
 const notificationService = require('../services/notificationService');
