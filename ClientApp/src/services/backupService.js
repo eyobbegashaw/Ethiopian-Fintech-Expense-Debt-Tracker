@@ -55,7 +55,7 @@ export const backupService = {
     ]);
 
     const backupData = {
-      app: 'Ethio Debt Tracker',
+      app: 'እልፍ',
       version: '1.0.0',
       timestamp: new Date().toISOString(),
       userId,
@@ -102,7 +102,7 @@ export const backupService = {
   validateBackup: async (backupJsonString) => {
     try {
       const parsed = JSON.parse(backupJsonString);
-      if (!parsed.data || parsed.app !== 'Ethio Debt Tracker') {
+      if (!parsed.data || (parsed.app !== 'እልፍ' && parsed.app !== 'Ethio Debt Tracker')) {
         throw new Error('Invalid backup file format');
       }
 

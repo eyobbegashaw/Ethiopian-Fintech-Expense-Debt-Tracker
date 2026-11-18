@@ -119,7 +119,7 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
         `${i18n.t('paid_by')}: ${expense.paidBy.name}\n` +
         `${i18n.t('your_share')}: ${userShare.toFixed(2)} ETB\n` +
         `${i18n.t('date')}: ${formatDate(expense.date)}\n\n` +
-        `${i18n.t('shared_via')} Ethio Debt Tracker`;
+        `${i18n.t('shared_via')} ${i18n.t('app_name')}`;
       
       await Share.share({
         message: message,

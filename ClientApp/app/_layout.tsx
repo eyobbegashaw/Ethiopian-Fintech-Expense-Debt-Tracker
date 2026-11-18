@@ -7,7 +7,7 @@ export default function RootLayout() {
   return (
     <>
       <Head>
-        <title>Ethio Debt Tracker</title>
+        <title>እልፍ - Ilf Fintech</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

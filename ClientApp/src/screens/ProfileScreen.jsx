@@ -11,7 +11,6 @@ import {
   Platform,
 } from 'react-native';
 import {
-  Card,
   Avatar,
   useTheme,
   ActivityIndicator,
@@ -28,9 +27,13 @@ import { backupService } from '../services/backupService';
 import { copyToClipboard } from '../utils/clipboardUtils';
 import { useTheme as useAppTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { formatAppDate } from '../utils/dateUtils';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import EthiopianGregorianDatePicker from '../components/Common/EthiopianGregorianDatePicker';
 
 const ProfileScreen = ({ navigation }) => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { user, logout, updateUser } = useAuth();
   const { themeMode, toggleTheme } = useAppTheme();
   const { language, changeLanguage, isAmharic, t } = useLanguage();
@@ -50,6 +53,7 @@ const ProfileScreen = ({ navigation }) => {
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showDatePickerPreview, setShowDatePickerPreview] = useState(false);
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
@@ -489,109 +493,166 @@ const ProfileScreen = ({ navigation }) => {
     );
   };
 
-  const MenuItem = ({ icon, title, onPress, rightElement }) => (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+  const MenuItem = ({
+    icon,
+    title,
+    subtitle,
+    onPress,
+    rightElement,
+    iconColor = theme.colors.primary,
+    iconBg = 'rgba(46, 125, 50, 0.1)',
+  }) => (
+    <TouchableOpacity
+      style={styles.menuItem}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+      disabled={!onPress && !rightElement}
+    >
       <View style={styles.menuItemLeft}>
-        <Icon name={icon} size={24} color={theme.colors.primary} />
-        <Text style={[styles.menuItemText, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
-          {title}
-        </Text>
+        <View style={[styles.menuIconSquircle, { backgroundColor: theme.dark ? 'rgba(255,255,255,0.08)' : iconBg }]}>
+          <Icon name={icon} size={22} color={iconColor} />
+        </View>
+        <View style={styles.menuTextContainer}>
+          <Text style={[styles.menuItemText, { color: theme.dark ? '#FFFFFF' : '#1C1C1E' }]}>
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text style={[styles.menuItemSubText, { color: theme.dark ? '#8E8E93' : '#8E8E93' }]}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
       </View>
-      {rightElement || <Icon name="chevron-right" size={20} color={theme.dark ? '#666' : '#ccc'} />}
+      {rightElement || (onPress && <Icon name="chevron-right" size={20} color={theme.dark ? '#636366' : '#C7C7CC'} />)}
     </TouchableOpacity>
   );
 
   const currentCurrency = user?.settings?.currency || 'ETB';
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Profile Header */}
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 40 }}
+    >
+      {/* Luxury Emerald Hero Banner */}
       <View
         style={[
-          styles.header,
+          styles.heroBanner,
           {
-            backgroundColor: theme.colors.surface,
-            borderBottomColor: theme.dark ? '#2C2C2C' : '#e0e0e0',
+            backgroundColor: theme.dark ? '#0A2613' : '#0D381E',
+            paddingTop: Math.max(insets.top + 16, Platform.OS === 'ios' ? 56 : 28),
           },
         ]}
       >
-        <View style={styles.avatarContainer}>
-          {user?.avatar ? (
-            <Avatar.Image
-              size={84}
-              source={{ uri: user.avatar }}
-              style={styles.avatar}
-            />
-          ) : (
-            <Avatar.Text
-              size={84}
-              label={user?.name?.charAt(0) || '?'}
-              style={styles.avatar}
-            />
+        {/* Ambient Top Glow Orbs */}
+        <View style={styles.heroGlowOrbLeft} />
+        <View style={styles.heroGlowOrbRight} />
+
+        {/* Top Branding & Edit Action Bar */}
+        <View style={styles.heroTopBar}>
+          <View style={styles.heroBadgeRow}>
+            <Icon name="star-four-points" size={14} color="#FFD700" />
+            <Text style={styles.heroBadgeText}>እልፍ • ILF ACCOUNT</Text>
+          </View>
+
+          {!editing && (
+            <TouchableOpacity
+              style={styles.heroEditPill}
+              onPress={() => setEditing(true)}
+              activeOpacity={0.8}
+            >
+              <Icon name="account-edit-outline" size={15} color="#FFFFFF" />
+              <Text style={styles.heroEditPillText}>
+                {t('edit_profile') || 'Edit'}
+              </Text>
+            </TouchableOpacity>
           )}
+        </View>
+
+        {/* Avatar Presentation with Double Ring */}
+        <View style={styles.avatarPresentation}>
+          <View style={styles.avatarRingOuter}>
+            <View style={styles.avatarRingInner}>
+              {user?.avatar ? (
+                <Avatar.Image
+                  size={92}
+                  source={{ uri: user.avatar }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <Avatar.Text
+                  size={92}
+                  label={user?.name?.charAt(0) || 'እ'}
+                  style={styles.avatarText}
+                  labelStyle={styles.avatarTextLabel}
+                />
+              )}
+            </View>
+          </View>
+
           <TouchableOpacity
-            style={styles.editAvatarButton}
+            style={styles.cameraFabButton}
             onPress={() => setShowAvatarModal(true)}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             {uploadingAvatar ? (
-              <ActivityIndicator size={16} color="#fff" />
+              <ActivityIndicator size={16} color="#0D381E" />
             ) : (
-              <Icon name="camera" size={18} color="#fff" />
+              <Icon name="camera" size={17} color="#0D381E" />
             )}
           </TouchableOpacity>
         </View>
 
+        {/* User Details */}
         {!editing ? (
-          <>
-            <Text style={[styles.userName, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
-              {user?.name}
+          <View style={styles.heroUserInfo}>
+            <Text style={[styles.heroUserName, isAmharic && styles.amharicFont]}>
+              {user?.name || 'እልፍ ተጠቃሚ'}
             </Text>
-            <Text style={[styles.userPhone, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>
-              {user?.phone}
-            </Text>
-            {user?.email && (
-              <Text style={[styles.userEmail, { color: theme.dark ? '#888888' : '#999999' }]}>
-                {user?.email}
-              </Text>
-            )}
-            <TouchableOpacity
-              style={[styles.editButton, { backgroundColor: theme.dark ? '#1B381E' : '#E8F5E9' }]}
-              onPress={() => setEditing(true)}
-            >
-              <Text style={[styles.editButtonText, { color: theme.colors.primary }]}>
-                {t('edit_profile') || 'Edit Profile'}
-              </Text>
-            </TouchableOpacity>
-          </>
+
+            <View style={styles.heroPhoneChip}>
+              <Icon name="cellphone" size={14} color="#00E676" style={{ marginRight: 6 }} />
+              <Text style={styles.heroPhoneText}>{user?.phone || '09...'}</Text>
+              <Icon name="check-decagram" size={14} color="#00E676" style={{ marginLeft: 6 }} />
+            </View>
+
+            {user?.email ? (
+              <View style={styles.heroEmailRow}>
+                <Icon name="email-outline" size={13} color="rgba(255,255,255,0.7)" style={{ marginRight: 5 }} />
+                <Text style={styles.heroEmailText}>{user.email}</Text>
+              </View>
+            ) : null}
+          </View>
         ) : (
-          <View style={styles.editForm}>
+          <View style={styles.editFormHero}>
             <TextInput
               label={t('name') || 'Name'}
               value={name}
               onChangeText={setName}
               mode="outlined"
-              style={[styles.editInput, { backgroundColor: theme.colors.surface }]}
-              textColor={theme.dark ? '#FFFFFF' : '#333333'}
-              outlineColor={theme.dark ? '#666666' : '#CCCCCC'}
-              activeOutlineColor={theme.colors.primary}
+              style={styles.editInputHero}
+              textColor="#FFFFFF"
+              outlineColor="rgba(255,255,255,0.3)"
+              activeOutlineColor="#FFD700"
             />
             <TextInput
               label={t('email') || 'Email'}
               value={email}
               onChangeText={setEmail}
               mode="outlined"
-              style={[styles.editInput, { backgroundColor: theme.colors.surface }]}
+              style={styles.editInputHero}
               keyboardType="email-address"
-              textColor={theme.dark ? '#FFFFFF' : '#333333'}
-              outlineColor={theme.dark ? '#666666' : '#CCCCCC'}
-              activeOutlineColor={theme.colors.primary}
+              textColor="#FFFFFF"
+              outlineColor="rgba(255,255,255,0.3)"
+              activeOutlineColor="#FFD700"
             />
-            <View style={styles.editActions}>
+            <View style={styles.editActionsHero}>
               <Button
                 mode="outlined"
+                textColor="#FFFFFF"
                 onPress={() => setEditing(false)}
-                style={styles.editActionButton}
+                style={styles.editActionCancel}
               >
                 {t('cancel') || 'Cancel'}
               </Button>
@@ -600,7 +661,7 @@ const ProfileScreen = ({ navigation }) => {
                 onPress={handleUpdateProfile}
                 loading={loading}
                 disabled={loading}
-                style={styles.editActionButton}
+                style={styles.editActionSave}
               >
                 {t('save') || 'Save'}
               </Button>
@@ -609,199 +670,278 @@ const ProfileScreen = ({ navigation }) => {
         )}
       </View>
 
-      {/* 100% Offline & Private Security Badge */}
+      {/* Floating 3-Metric Stats Dashboard Card */}
       <View
         style={[
-          styles.offlineBadgeCard,
+          styles.floatingStatsCard,
           {
-            backgroundColor: theme.dark ? '#1A2E1C' : '#E8F5E9',
-            borderColor: theme.dark ? '#2E7D32' : '#C8E6C9',
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.dark ? '#333333' : '#E8ECE8',
           },
         ]}
       >
-        <View style={styles.offlineBadgeRow}>
-          <View style={[styles.offlineShieldCircle, { backgroundColor: '#2E7D32' }]}>
-            <Icon name="shield-check" size={20} color="#fff" />
+        {/* Metric 1: Total Balance */}
+        <View style={styles.statCol}>
+          <View style={[styles.statIconWrap, { backgroundColor: stats.totalBalance >= 0 ? '#E8F5E9' : '#FFF3E0' }]}>
+            <Icon
+              name={stats.totalBalance >= 0 ? 'cash-check' : 'cash-refund'}
+              size={20}
+              color={stats.totalBalance >= 0 ? '#2E7D32' : '#E65100'}
+            />
           </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={[styles.offlineBadgeHeading, { color: theme.dark ? '#A5D6A7' : '#1B5E20' }]}>
-              {t('offline_privacy_badge') || '100% Offline & Private'}
-            </Text>
-            <Text style={[styles.offlineBadgeSub, { color: theme.dark ? '#81C784' : '#2E7D32' }]}>
-              {t('offline_privacy_desc') || 'Your financial data is stored securely on this device only. No external server, no cloud tracking.'}
-            </Text>
+          <Text style={[styles.statValueText, { color: stats.totalBalance >= 0 ? '#2E7D32' : '#E65100' }]}>
+            {stats.totalBalance > 0 ? `+${stats.totalBalance}` : stats.totalBalance} {currentCurrency}
+          </Text>
+          <Text style={[styles.statLabelText, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>
+            {t('total_balance') || 'Balance'}
+          </Text>
+        </View>
+
+        <View style={[styles.statVerticalDivider, { backgroundColor: theme.dark ? '#333' : '#E0E0E0' }]} />
+
+        {/* Metric 2: Active Groups */}
+        <View style={styles.statCol}>
+          <View style={[styles.statIconWrap, { backgroundColor: '#E3F2FD' }]}>
+            <Icon name="account-group" size={20} color="#1565C0" />
           </View>
+          <Text style={[styles.statValueText, { color: theme.dark ? '#FFFFFF' : '#1565C0' }]}>
+            {stats.activeGroups}
+          </Text>
+          <Text style={[styles.statLabelText, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>
+            {t('active_groups') || 'Groups'}
+          </Text>
+        </View>
+
+        <View style={[styles.statVerticalDivider, { backgroundColor: theme.dark ? '#333' : '#E0E0E0' }]} />
+
+        {/* Metric 3: Account Status */}
+        <View style={styles.statCol}>
+          <View style={[styles.statIconWrap, { backgroundColor: '#E8F5E9' }]}>
+            <Icon name="shield-check" size={20} color="#2E7D32" />
+          </View>
+          <Text style={[styles.statValueText, { color: '#2E7D32' }]}>
+            {isAmharic ? 'ተረጋግጧል' : 'Verified'}
+          </Text>
+          <Text style={[styles.statLabelText, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>
+            {isAmharic ? 'የእልፍ አባል' : 'Member'}
+          </Text>
         </View>
       </View>
 
-      {/* Stats Cards */}
-      <View style={styles.statsRow}>
-        <Card style={[styles.statsCard, { backgroundColor: theme.colors.surface }]}>
-          <Card.Content style={styles.statsContent}>
-            <Icon
-              name="cash-multiple"
-              size={24}
-              color={stats.totalBalance >= 0 ? '#4CAF50' : '#FF9800'}
-            />
-            <Text style={[styles.statsValue, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
-              {stats.totalBalance > 0 ? `+${stats.totalBalance}` : stats.totalBalance} {currentCurrency}
-            </Text>
-            <Text style={[styles.statsLabel, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>
-              {t('total_balance') || 'Total Balance'}
-            </Text>
-          </Card.Content>
-        </Card>
-        <Card style={[styles.statsCard, { backgroundColor: theme.colors.surface }]}>
-          <Card.Content style={styles.statsContent}>
-            <Icon name="account-group" size={24} color="#2196F3" />
-            <Text style={[styles.statsValue, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
-              {stats.activeGroups}
-            </Text>
-            <Text style={[styles.statsLabel, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>
-              {t('active_groups') || 'Active Groups'}
-            </Text>
-          </Card.Content>
-        </Card>
+      {/* ---------------- SECTION 1: PREFERENCES & LOCALIZATION ---------------- */}
+      <View style={styles.sectionHeaderRow}>
+        <Text style={[styles.sectionHeaderText, { color: theme.dark ? '#81C784' : '#2E7D32' }]}>
+          {isAmharic ? 'ምርጫዎች እና ቋንቋ' : 'PREFERENCES & LOCALIZATION'}
+        </Text>
       </View>
 
-      {/* Menu Items */}
-      <Card style={[styles.menuCard, { backgroundColor: theme.colors.surface }]}>
-        <Card.Content>
-          <MenuItem
-            icon="bell-outline"
-            title={t('notifications') || 'Notifications'}
-            rightElement={
-              <Switch
-                value={notifications}
-                onValueChange={handleToggleNotifications}
-                trackColor={{ false: '#777', true: '#4CAF50' }}
-                thumbColor={notifications ? '#fff' : '#f4f3f4'}
-              />
-            }
-          />
-          <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#e0e0e0' }]} />
-
-          <MenuItem
-            icon="translate"
-            title={t('language') || 'Language'}
-            rightElement={
-              <Text style={{ fontSize: 14, color: theme.colors.primary, fontWeight: '600' }}>
+      <View style={[styles.modernCard, { backgroundColor: theme.colors.surface }]}>
+        <MenuItem
+          icon="translate"
+          iconColor="#2E7D32"
+          iconBg="#E8F5E9"
+          title={t('language') || 'Language'}
+          subtitle={isAmharic ? 'የመተግበሪያውን ቋንቋ ይቀይሩ' : 'App language selection'}
+          rightElement={
+            <View style={[styles.pillBadge, { backgroundColor: isAmharic ? '#E8F5E9' : '#E3F2FD' }]}>
+              <Text style={[styles.pillBadgeText, { color: isAmharic ? '#2E7D32' : '#1565C0' }]}>
                 {language === 'am' ? 'አማርኛ' : 'English'}
               </Text>
-            }
-            onPress={() => setShowLanguageModal(true)}
-          />
-          <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#e0e0e0' }]} />
+              <Icon name="chevron-right" size={16} color="#888" style={{ marginLeft: 4 }} />
+            </View>
+          }
+          onPress={() => setShowLanguageModal(true)}
+        />
+        <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#F0F0F0' }]} />
 
-          <MenuItem
-            icon="theme-light-dark"
-            title={t('dark_mode') || 'Dark Mode'}
-            rightElement={
-              <Switch
-                value={themeMode === 'dark'}
-                onValueChange={toggleTheme}
-                trackColor={{ false: '#777', true: '#4CAF50' }}
-                thumbColor={themeMode === 'dark' ? '#fff' : '#f4f3f4'}
-              />
-            }
-          />
-          <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#e0e0e0' }]} />
+        <MenuItem
+          icon="theme-light-dark"
+          iconColor="#F57C00"
+          iconBg="#FFF3E0"
+          title={t('dark_mode') || 'Dark Mode'}
+          subtitle={isAmharic ? 'የቀን / የሌሊት ገጽታ' : 'Toggle dark / light appearance'}
+          rightElement={
+            <Switch
+              value={themeMode === 'dark'}
+              onValueChange={toggleTheme}
+              trackColor={{ false: '#B0BEC5', true: '#4CAF50' }}
+              thumbColor={themeMode === 'dark' ? '#fff' : '#f4f3f4'}
+            />
+          }
+        />
+        <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#F0F0F0' }]} />
 
-          {/* CURRENCY (Opens Bottom Sheet Card) */}
-          <MenuItem
-            icon="currency-usd"
-            title={t('currency') || 'Currency'}
-            rightElement={
-              <Text style={{ fontSize: 14, color: theme.colors.primary, fontWeight: '600' }}>
+        <MenuItem
+          icon="currency-usd"
+          iconColor="#0288D1"
+          iconBg="#E1F5FE"
+          title={t('currency') || 'Currency'}
+          subtitle={isAmharic ? 'ዋና የክፍያ መገበያያ' : 'Primary ledger currency'}
+          rightElement={
+            <View style={[styles.pillBadge, { backgroundColor: '#E1F5FE' }]}>
+              <Text style={[styles.pillBadgeText, { color: '#0288D1' }]}>
                 {currentCurrency}
               </Text>
-            }
-            onPress={() => setShowCurrencyModal(true)}
-          />
-          <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#e0e0e0' }]} />
+              <Icon name="chevron-right" size={16} color="#888" style={{ marginLeft: 4 }} />
+            </View>
+          }
+          onPress={() => setShowCurrencyModal(true)}
+        />
+        <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#F0F0F0' }]} />
 
-          {/* CALENDAR (Opens Bottom Sheet Card) */}
-          <MenuItem
-            icon="calendar-month-outline"
-            title={t('calendar') || 'Calendar'}
-            rightElement={
-              <Text style={{ fontSize: 14, color: theme.colors.primary, fontWeight: '600' }}>
+        <MenuItem
+          icon="calendar-month-outline"
+          iconColor="#7B1FA2"
+          iconBg="#F3E5F5"
+          title={t('calendar') || 'Calendar'}
+          subtitle={isAmharic ? 'የቀን መቁጠሪያ ስርዓት' : 'Date calendar system'}
+          rightElement={
+            <View style={[styles.pillBadge, { backgroundColor: '#F3E5F5' }]}>
+              <Text style={[styles.pillBadgeText, { color: '#7B1FA2' }]}>
                 {currentCalendar === 'ethiopian'
                   ? (isAmharic ? 'የኢትዮጵያ' : 'Ethiopian')
                   : (isAmharic ? 'የፈረንጆች' : 'Gregorian')}
               </Text>
-            }
-            onPress={() => setShowCalendarModal(true)}
-          />
-          <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#e0e0e0' }]} />
+              <Icon name="chevron-right" size={16} color="#888" style={{ marginLeft: 4 }} />
+            </View>
+          }
+          onPress={() => setShowCalendarModal(true)}
+        />
+        <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#F0F0F0' }]} />
 
-          {/* TIME FORMAT (Opens Bottom Sheet Card) */}
-          <MenuItem
-            icon="clock-outline"
-            title={t('time_format') || 'Time Format'}
-            rightElement={
-              <Text style={{ fontSize: 14, color: theme.colors.primary, fontWeight: '600' }}>
+        <MenuItem
+          icon="clock-outline"
+          iconColor="#00796B"
+          iconBg="#E0F2F1"
+          title={t('time_format') || 'Time Format'}
+          subtitle={isAmharic ? 'የሰዓት ማሳያ' : '12h or 24h clock display'}
+          rightElement={
+            <View style={[styles.pillBadge, { backgroundColor: '#E0F2F1' }]}>
+              <Text style={[styles.pillBadgeText, { color: '#00796B' }]}>
                 {currentTimeFormat === '12h' ? '12h (AM/PM)' : '24h'}
               </Text>
-            }
-            onPress={() => setShowTimeModal(true)}
-          />
-          <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#e0e0e0' }]} />
+              <Icon name="chevron-right" size={16} color="#888" style={{ marginLeft: 4 }} />
+            </View>
+          }
+          onPress={() => setShowTimeModal(true)}
+        />
+      </View>
 
-          {/* LOCAL BACKUP & RESTORE (Opens Bottom Sheet Card) */}
-          <MenuItem
-            icon="database-sync"
-            title={t('backup_and_restore') || 'Local Backup & Restore'}
-            rightElement={
-              <Text style={{ fontSize: 13, color: theme.colors.primary, fontWeight: '600' }}>
+      {/* ---------------- SECTION 2: SECURITY & DATA ---------------- */}
+      <View style={styles.sectionHeaderRow}>
+        <Text style={[styles.sectionHeaderText, { color: theme.dark ? '#81C784' : '#2E7D32' }]}>
+          {isAmharic ? 'ደህንነት እና መረጃ' : 'SECURITY & DATA'}
+        </Text>
+      </View>
+
+      <View style={[styles.modernCard, { backgroundColor: theme.colors.surface }]}>
+        <MenuItem
+          icon="bell-ring-outline"
+          iconColor="#E65100"
+          iconBg="#FFF3E0"
+          title={t('notifications') || 'Notifications'}
+          subtitle={isAmharic ? 'የክፍያ እና የቡድን ማሳወቂያዎች' : 'Expense & group activity alerts'}
+          rightElement={
+            <Switch
+              value={notifications}
+              onValueChange={handleToggleNotifications}
+              trackColor={{ false: '#B0BEC5', true: '#4CAF50' }}
+              thumbColor={notifications ? '#fff' : '#f4f3f4'}
+            />
+          }
+        />
+        <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#F0F0F0' }]} />
+
+        <MenuItem
+          icon="shield-key-outline"
+          iconColor="#1B5E20"
+          iconBg="#E8F5E9"
+          title={t('change_password') || 'Change Password'}
+          subtitle={isAmharic ? 'የመግቢያ የይለፍ ቃልዎን ያዘምኑ' : 'Update your account password'}
+          onPress={() => {
+            setPasswordError('');
+            setPasswordSuccess('');
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmNewPassword('');
+            setShowPasswordModal(true);
+          }}
+        />
+        <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#F0F0F0' }]} />
+
+        <MenuItem
+          icon="database-sync-outline"
+          iconColor="#0D47A1"
+          iconBg="#E3F2FD"
+          title={t('backup_and_restore') || 'Local Backup & Restore'}
+          subtitle={isAmharic ? 'የውሂብ ምትኬ ያስቀምጡ ወይም ይመልሱ' : 'Export or restore your ledgers'}
+          rightElement={
+            <View style={[styles.pillBadge, { backgroundColor: '#E8F5E9' }]}>
+              <Text style={[styles.pillBadgeText, { color: '#2E7D32' }]}>
                 {t('export_backup') || 'Backup'}
               </Text>
-            }
-            onPress={() => {
-              setRestoreError('');
-              setRestoreSuccess('');
-              setValidatedBackup(null);
-              setShowBackupModal(true);
-            }}
-          />
-          <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#e0e0e0' }]} />
+              <Icon name="chevron-right" size={16} color="#888" style={{ marginLeft: 4 }} />
+            </View>
+          }
+          onPress={() => {
+            setRestoreError('');
+            setRestoreSuccess('');
+            setValidatedBackup(null);
+            setShowBackupModal(true);
+          }}
+        />
+      </View>
 
-          {/* CHANGE PASSWORD (Opens Bottom Sheet Card) */}
-          <MenuItem
-            icon="lock-outline"
-            title={t('change_password') || 'Change Password'}
-            onPress={() => {
-              setPasswordError('');
-              setPasswordSuccess('');
-              setCurrentPassword('');
-              setNewPassword('');
-              setConfirmNewPassword('');
-              setShowPasswordModal(true);
-            }}
-          />
-          <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#e0e0e0' }]} />
+      {/* ---------------- SECTION 3: APP INFO & LOGOUT ---------------- */}
+      <View style={styles.sectionHeaderRow}>
+        <Text style={[styles.sectionHeaderText, { color: theme.dark ? '#81C784' : '#2E7D32' }]}>
+          {isAmharic ? 'ስለ መተግበሪያው' : 'ABOUT & ACCOUNT'}
+        </Text>
+      </View>
 
-          {/* ABOUT (Opens Bottom Sheet Card) */}
-          <MenuItem
-            icon="information-outline"
-            title={t('about') || 'About'}
-            onPress={() => setShowAboutModal(true)}
-          />
-          <Divider style={[styles.divider, { backgroundColor: theme.dark ? '#2C2C2C' : '#e0e0e0' }]} />
+      <View style={[styles.modernCard, { backgroundColor: theme.colors.surface }]}>
+        <MenuItem
+          icon="information-outline"
+          iconColor="#00897B"
+          iconBg="#E0F2F1"
+          title={t('about') || 'About እልፍ'}
+          subtitle={isAmharic ? 'ስሪት 1.0.0 • የኢትዮጵያ ፊንቴክ' : 'Version 1.0.0 • Ethiopian Fintech'}
+          onPress={() => setShowAboutModal(true)}
+        />
+      </View>
 
-          {/* LOGOUT (Opens Bottom Sheet Card) */}
-          <MenuItem
-            icon="logout"
-            title={t('logout') || 'Log Out'}
-            onPress={() => setShowLogoutModal(true)}
-          />
-        </Card.Content>
-      </Card>
+      {/* Modern Destructive Logout Button */}
+      <TouchableOpacity
+        style={[
+          styles.modernLogoutCard,
+          {
+            backgroundColor: theme.dark ? '#2D1517' : '#FFEBEE',
+            borderColor: theme.dark ? '#5C1D24' : '#FFCDD2',
+          },
+        ]}
+        onPress={() => setShowLogoutModal(true)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.logoutContentRow}>
+          <View style={styles.logoutSquircle}>
+            <Icon name="logout-variant" size={20} color="#D32F2F" />
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.logoutButtonTitle}>{t('logout') || 'Log Out'}</Text>
+            <Text style={styles.logoutButtonSubtitle}>
+              {isAmharic ? 'ከአካውንትዎ በደህንነት ይውጡ' : 'Sign out of your session securely'}
+            </Text>
+          </View>
+          <Icon name="chevron-right" size={20} color="#D32F2F" />
+        </View>
+      </TouchableOpacity>
 
-      {/* Version Info */}
-      <Text style={[styles.versionText, { color: theme.dark ? '#666666' : '#999999' }]}>
-        {t('version') || 'Version'} 1.0.0
-      </Text>
+      {/* Version Footer */}
+      <View style={styles.profileFooter}>
+        <Text style={[styles.versionText, { color: theme.dark ? '#666666' : '#999999' }]}>
+          እልፍ (Ilf) • {t('version') || 'Version'} 1.0.0
+        </Text>
+      </View>
 
       {/* ---------------- 1. AVATAR BOTTOM SHEET MODAL ---------------- */}
       <Modal
@@ -1167,15 +1307,43 @@ const ProfileScreen = ({ navigation }) => {
             })}
 
             <Button
+              mode="contained"
+              icon="calendar-multiselect"
+              onPress={() => {
+                setShowCalendarModal(false);
+                setTimeout(() => setShowDatePickerPreview(true), 250);
+              }}
+              style={{ marginTop: 14, borderRadius: 12, backgroundColor: theme.colors.primary }}
+            >
+              {isAmharic ? 'ቀን መምረጫ ክፈት • Open Date Picker' : 'Open Calendar Date Picker'}
+            </Button>
+
+            <Button
               mode="outlined"
               onPress={() => setShowCalendarModal(false)}
-              style={{ marginTop: 12, borderRadius: 12 }}
+              style={{ marginTop: 8, borderRadius: 12 }}
             >
               {t('cancel') || 'Cancel'}
             </Button>
           </View>
         </View>
       </Modal>
+
+      {/* Interactive Ethiopian & Gregorian Date Picker */}
+      <EthiopianGregorianDatePicker
+        visible={showDatePickerPreview}
+        initialDate={new Date()}
+        onConfirm={(d) => {
+          setShowDatePickerPreview(false);
+          Alert.alert(
+            t('success') || 'Success',
+            isAmharic
+              ? `የተመረጠው ቀን: ${formatAppDate(d, { calendar: currentCalendar, language: 'am' })}`
+              : `Selected Date: ${formatAppDate(d, { calendar: currentCalendar, language: 'en' })}`
+          );
+        }}
+        onClose={() => setShowDatePickerPreview(false)}
+      />
 
       {/* ---------------- 5. TIME FORMAT BOTTOM SHEET MODAL ---------------- */}
       <Modal
@@ -1431,10 +1599,10 @@ const ProfileScreen = ({ navigation }) => {
                   <Icon name="cash-multiple" size={36} color="#fff" />
                 </View>
                 <Text style={[styles.aboutAppName, { color: theme.colors.primary }]}>
-                  Equb & Expense Tracker
+                  እልፍ (Ilf Fintech)
                 </Text>
                 <Text style={[styles.aboutAppAmharic, { color: theme.dark ? '#CCCCCC' : '#555' }]}>
-                  የኢትዮጵያ ወጪ እና እዳ ተቆጣጣሪ
+                  እልፍ - የኢትዮጵያ ወጪ እና እዳ ተቆጣጣሪ
                 </Text>
                 <View style={styles.aboutVersionBadge}>
                   <Text style={styles.aboutVersionText}>Version 1.0.0 (Production)</Text>
@@ -1788,131 +1956,372 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
-  header: {
-    backgroundColor: '#fff',
-    padding: 24,
+  amharicFont: {
+    fontFamily: 'Noto Serif Ethiopic, serif',
+  },
+
+  // ---------------- HERO BANNER ----------------
+  heroBanner: {
+    paddingTop: Platform.OS === 'ios' ? 56 : 28,
+    paddingBottom: 48,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  avatarContainer: {
     position: 'relative',
-    marginBottom: 16,
+    overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 8px 24px rgba(10, 36, 19, 0.25)',
+      },
+      default: {
+        elevation: 6,
+      },
+    }),
   },
-  avatar: {
-    backgroundColor: '#2E7D32',
-  },
-  editAvatarButton: {
+  heroGlowOrbLeft: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#2E7D32',
+    top: -40,
+    left: -40,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(0, 230, 118, 0.12)',
+  },
+  heroGlowOrbRight: {
+    position: 'absolute',
+    bottom: -30,
+    right: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(255, 215, 0, 0.08)',
+  },
+  heroTopBar: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  heroBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.3)',
+  },
+  heroBadgeText: {
+    color: '#FFD700',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    marginLeft: 6,
+  },
+  heroEditPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  heroEditPillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  avatarPresentation: {
+    position: 'relative',
+    marginBottom: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarRingOuter: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 215, 0, 0.4)',
+  },
+  avatarRingInner: {
+    width: 98,
+    height: 98,
+    borderRadius: 49,
+    backgroundColor: '#0A2613',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  avatarImage: {
+    backgroundColor: '#1B5E20',
+  },
+  avatarText: {
+    backgroundColor: '#1B5E20',
+  },
+  avatarTextLabel: {
+    fontSize: 38,
+    fontWeight: 'bold',
+    color: '#FFD700',
+  },
+  cameraFabButton: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: '#FFD700',
     width: 32,
     height: 32,
     borderRadius: 16,
+    alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2.5,
+    borderColor: '#0D381E',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+      },
+      default: {
+        elevation: 4,
+      },
+    }),
+  },
+  heroUserInfo: {
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-    elevation: 3,
   },
-  userName: {
-    fontSize: 22,
+  heroUserName: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 6,
   },
-  userPhone: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
+  heroPhoneChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 230, 118, 0.3)',
   },
-  userEmail: {
-    fontSize: 14,
-    color: '#999',
-    marginBottom: 12,
-  },
-  editButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    backgroundColor: '#E8F5E9',
-    borderRadius: 20,
-    marginTop: 4,
-  },
-  editButtonText: {
-    color: '#2E7D32',
-    fontSize: 14,
+  heroPhoneText: {
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '600',
+    letterSpacing: 0.5,
   },
-  editForm: {
-    width: '100%',
-    marginTop: 16,
-  },
-  editInput: {
-    marginBottom: 12,
-  },
-  editActions: {
+  heroEmailRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginTop: 8,
-  },
-  editActionButton: {
-    flex: 1,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-  },
-  statsCard: {
-    flex: 1,
-    borderRadius: 12,
-  },
-  statsContent: {
     alignItems: 'center',
+    marginTop: 6,
   },
-  statsValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 8,
-  },
-  statsLabel: {
+  heroEmailText: {
+    color: 'rgba(255, 255, 255, 0.75)',
     fontSize: 12,
-    color: '#666',
-    marginTop: 4,
   },
-  menuCard: {
-    margin: 16,
-    marginTop: 0,
+  editFormHero: {
+    width: '100%',
+    paddingTop: 8,
+  },
+  editInputHero: {
+    marginBottom: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+  },
+  editActionsHero: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 6,
+  },
+  editActionCancel: {
+    flex: 1,
     borderRadius: 12,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  editActionSave: {
+    flex: 1,
+    borderRadius: 12,
+    backgroundColor: '#2E7D32',
+  },
+
+  // ---------------- FLOATING STATS DASHBOARD ----------------
+  floatingStatsCard: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: -28,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    zIndex: 10,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.08)',
+      },
+      default: {
+        elevation: 5,
+      },
+    }),
+  },
+  statCol: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  statIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  statValueText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  statLabelText: {
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  statVerticalDivider: {
+    width: 1,
+    height: 36,
+  },
+
+  // ---------------- MODERN CATEGORIZED SECTIONS ----------------
+  sectionHeaderRow: {
+    marginHorizontal: 20,
+    marginTop: 22,
+    marginBottom: 8,
+  },
+  sectionHeaderText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
+  modernCard: {
+    marginHorizontal: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+      },
+      default: {
+        elevation: 2,
+      },
+    }),
   },
   menuItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
   },
   menuItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+  menuIconSquircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  menuTextContainer: {
+    flex: 1,
   },
   menuItemText: {
-    fontSize: 16,
-    color: '#333',
-    marginLeft: 12,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  menuItemSubText: {
+    fontSize: 11.5,
+    marginTop: 2,
   },
   divider: {
-    marginVertical: 4,
+    height: 1,
+    marginLeft: 68,
+  },
+  pillBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  pillBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // ---------------- MODERN LOGOUT CARD ----------------
+  modernLogoutCard: {
+    marginHorizontal: 16,
+    marginTop: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 10px rgba(211, 47, 47, 0.08)',
+      },
+      default: {
+        elevation: 2,
+      },
+    }),
+  },
+  logoutContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoutSquircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(211, 47, 47, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutButtonTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#D32F2F',
+  },
+  logoutButtonSubtitle: {
+    fontSize: 11.5,
+    color: '#E57373',
+    marginTop: 2,
+  },
+  profileFooter: {
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 10,
   },
   versionText: {
-    textAlign: 'center',
     fontSize: 12,
-    color: '#999',
-    marginBottom: 30,
+    fontWeight: '500',
   },
 
   // ---------------- BOTTOM SHEET STYLES ----------------
@@ -2150,36 +2559,6 @@ const styles = StyleSheet.create({
   logoutUserName: {
     fontSize: 15,
     fontWeight: '600',
-  },
-
-  // Offline Privacy Badge Styles
-  offlineBadgeCard: {
-    marginHorizontal: 16,
-    marginTop: 14,
-    marginBottom: 4,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  offlineBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  offlineShieldCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  offlineBadgeHeading: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  offlineBadgeSub: {
-    fontSize: 12,
-    marginTop: 2,
-    lineHeight: 16,
   },
 
   // Local Backup & Restore Styles

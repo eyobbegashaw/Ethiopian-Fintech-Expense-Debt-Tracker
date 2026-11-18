@@ -4,7 +4,7 @@ import { I18n } from 'i18n-js';
 const translations = {
   en: {
     // ==================== COMMON ====================
-    app_name: 'Ethio Debt Tracker',
+    app_name: 'እልፍ (Ilf)',
     loading: 'Loading...',
     save: 'Save',
     cancel: 'Cancel',
@@ -553,7 +553,7 @@ const translations = {
   
   am: {
     // ==================== የጋራ ====================
-    app_name: 'ኢትዮ ዕዳ መከታተያ',
+    app_name: 'እልፍ',
     loading: 'በመጫን ላይ...',
     save: 'አስቀምጥ',
     cancel: 'ሰርዝ',

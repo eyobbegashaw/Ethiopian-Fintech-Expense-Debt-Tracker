@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Ethio Debt Tracker",
-    "slug": "ethio-debt-tracker",
+    "name": "እልፍ",
+    "slug": "ilf-fintech",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -30,7 +30,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -55,6 +55,15 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "notFound": false,
+        "sitemap": false
+      },
+      "eas": {
+        "projectId": "04238577-766e-4978-a1b8-e04e9c35580e"
+      }
     }
   }
 }

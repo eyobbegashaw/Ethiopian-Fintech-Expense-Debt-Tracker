@@ -631,7 +631,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     width: '100%',
   },
-  backButton: {
+  headerBackButton: {
     padding: 6,
     borderRadius: 20,
   },

@@ -402,8 +402,9 @@ export async function query(sql, params = []) {
 
   const rows = memoryTables[tableName] || [];
 
+  const paramTracker = { index: 0 };
   let result = whereClause
-    ? rows.filter((r) => evaluateRow(r, whereClause, params, { index: 0 }, memoryTables))
+    ? rows.filter((r) => evaluateRow(r, whereClause, params, paramTracker, memoryTables))
     : [...rows];
 
   // ORDER BY
@@ -434,7 +435,7 @@ export async function query(sql, params = []) {
   if (limitClause) {
     let limitNum = Number(limitClause);
     if (isNaN(limitNum) && limitClause === '?') {
-      limitNum = Number(params[paramIndexTracker.index++]);
+      limitNum = Number(params[paramTracker.index++]);
     }
     if (!isNaN(limitNum)) {
       result = result.slice(0, limitNum);

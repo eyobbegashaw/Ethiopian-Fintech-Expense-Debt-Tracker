@@ -15,6 +15,7 @@ import {
   Chip,
 } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import i18n from '../translations';
 import { activityService } from '../services/activityService';
@@ -23,6 +24,7 @@ import { useAppDate } from '../utils/dateUtils';
 
 const ActivityScreen = ({ navigation }) => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { formatRelative } = useAppDate();
   const [activities, setActivities] = useState([]);
@@ -176,7 +178,7 @@ const ActivityScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background, paddingTop: Math.max(insets.top, 8) }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
@@ -185,7 +187,16 @@ const ActivityScreen = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.dark ? '#2C2C2C' : '#e0e0e0' }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: theme.colors.surface,
+            borderBottomColor: theme.dark ? '#2C2C2C' : '#e0e0e0',
+            paddingTop: Math.max(insets.top, 14),
+          },
+        ]}
+      >
         <Text style={[styles.headerTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{i18n.t('recent_activity')}</Text>
       </View>
 

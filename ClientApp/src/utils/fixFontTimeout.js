@@ -46,7 +46,22 @@ if (Platform.OS === 'web' && typeof window !== 'undefined') {
     };
   }
 
-  // 4. Prevent any unhandled promise rejections related to font timeouts from crashing the web app
+  // 4. Clean up repetitive React Native Web deprecation warnings from third-party libraries
+  const originalWarn = console.warn;
+  console.warn = (...args) => {
+    const msg = typeof args[0] === 'string' ? args[0] : '';
+    if (
+      msg.includes('pointerEvents is deprecated') ||
+      msg.includes('shadow*') ||
+      msg.includes('style.resizeMode is deprecated') ||
+      msg.includes('useNativeDriver')
+    ) {
+      return;
+    }
+    originalWarn(...args);
+  };
+
+  // 5. Prevent any unhandled promise rejections related to font timeouts from crashing the web app
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
     const message = reason?.message || String(reason || '');

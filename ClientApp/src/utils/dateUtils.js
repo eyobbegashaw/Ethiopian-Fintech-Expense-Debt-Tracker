@@ -27,6 +27,43 @@ export const GREGORIAN_MONTHS = {
   ]
 };
 
+export function ethiopianToJDN(year, month, day) {
+  return 1723856 + 365 * year + Math.floor(year / 4) + 30 * (month - 1) + day - 1;
+}
+
+export function jdnToGregorian(jdn) {
+  const l = jdn + 68569;
+  const n = Math.floor((4 * l) / 146097);
+  const l1 = l - Math.floor((146097 * n + 3) / 4);
+  const i = Math.floor((4000 * (l1 + 1)) / 1461001);
+  const l2 = l1 - Math.floor((1461 * i) / 4) + 31;
+  const j = Math.floor((80 * l2) / 2447);
+  const day = l2 - Math.floor((2447 * j) / 80);
+  const l3 = Math.floor(j / 11);
+  const month = j + 2 - 12 * l3;
+  const year = 100 * (n - 49) + i + l3;
+  return new Date(year, month - 1, day);
+}
+
+export function toGregorianFromEthiopian(year, month, day) {
+  const jdn = ethiopianToJDN(year, month, day);
+  return jdnToGregorian(jdn);
+}
+
+export function getDaysInEthiopianMonth(year, month) {
+  if (month >= 1 && month <= 12) return 30;
+  if (month === 13) {
+    // Pagume has 6 days in leap year, where year % 4 === 3
+    return year % 4 === 3 ? 6 : 5;
+  }
+  return 30;
+}
+
+export const WEEKDAYS = {
+  en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+  am: ['እሁድ', 'ሰኞ', 'ማክሰኞ', 'ረቡዕ', 'ሐሙስ', 'አርብ', 'ቅዳሜ'],
+};
+
 function gregorianToJDN(year, month, day) {
   const a = Math.floor((14 - month) / 12);
   const y = year + 4800 - a;
@@ -55,6 +92,16 @@ export function toEthiopianDate(dateInput) {
     monthNameEn: ETHIOPIAN_MONTHS.en[eth.month - 1] || '',
     monthNameAm: ETHIOPIAN_MONTHS.am[eth.month - 1] || '',
   };
+}
+
+export const gregorianToEthiopian = toEthiopianDate;
+
+export function formatEthiopianDate(ethDate, language = 'en') {
+  if (!ethDate) return '';
+  const monthName = language === 'am'
+    ? (ethDate.monthNameAm || ETHIOPIAN_MONTHS.am[ethDate.month - 1] || '')
+    : (ethDate.monthNameEn || ETHIOPIAN_MONTHS.en[ethDate.month - 1] || '');
+  return `${monthName} ${ethDate.day}, ${ethDate.year}`;
 }
 
 /**

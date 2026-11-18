@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image } from 'react-native';
+import { Image, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -34,8 +34,15 @@ const getStackScreenOptions = (theme, isAmharic) => ({
     backgroundColor: theme.dark ? '#1E1E1E' : theme.colors.primary,
     borderBottomColor: theme.dark ? '#2C2C2C' : 'transparent',
     borderBottomWidth: theme.dark ? 1 : 0,
-    elevation: theme.dark ? 0 : 4,
-    shadowOpacity: theme.dark ? 0 : 0.2,
+    ...Platform.select({
+      web: {
+        boxShadow: theme.dark ? 'none' : '0 2px 4px rgba(0,0,0,0.2)',
+      },
+      default: {
+        elevation: theme.dark ? 0 : 4,
+        shadowOpacity: theme.dark ? 0 : 0.2,
+      },
+    }),
   },
   headerTintColor: '#fff',
   headerTitleStyle: {
@@ -58,7 +65,7 @@ const HomeStack = () => {
       <Stack.Screen
         name="HomeScreen"
         component={HomeScreen}
-        options={{ title: t('home') }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="Group"
@@ -83,7 +90,7 @@ const HomeStack = () => {
       <Stack.Screen
         name="FinancialDashboardScreen"
         component={FinancialDashboardScreen}
-        options={{ title: t('financial_hub') || t('finance') }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="Accounts"
@@ -128,7 +135,7 @@ const FinanceStack = () => {
       <Stack.Screen
         name="FinanceDashboard"
         component={FinancialDashboardScreen}
-        options={{ title: t('financial_hub') || t('finance') }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="Accounts"
@@ -166,14 +173,14 @@ const FinanceStack = () => {
 
 const BalancesStack = () => {
   const theme = useTheme();
-  const { t, isAmharic } = useLanguage();
+  const { isAmharic } = useLanguage();
 
   return (
     <Stack.Navigator screenOptions={getStackScreenOptions(theme, isAmharic)}>
       <Stack.Screen
         name="BalancesScreen"
         component={BalancesScreen}
-        options={{ title: t('balances') }}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
@@ -181,14 +188,14 @@ const BalancesStack = () => {
 
 const FriendsStack = () => {
   const theme = useTheme();
-  const { t, isAmharic } = useLanguage();
+  const { isAmharic } = useLanguage();
 
   return (
     <Stack.Navigator screenOptions={getStackScreenOptions(theme, isAmharic)}>
       <Stack.Screen
         name="FriendsScreen"
         component={FriendsScreen}
-        options={{ title: t('friends') }}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
@@ -196,14 +203,14 @@ const FriendsStack = () => {
 
 const ActivityStack = () => {
   const theme = useTheme();
-  const { t, isAmharic } = useLanguage();
+  const { isAmharic } = useLanguage();
 
   return (
     <Stack.Navigator screenOptions={getStackScreenOptions(theme, isAmharic)}>
       <Stack.Screen
         name="ActivityScreen"
         component={ActivityScreen}
-        options={{ title: t('activity') }}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
@@ -211,14 +218,14 @@ const ActivityStack = () => {
 
 const ProfileStack = () => {
   const theme = useTheme();
-  const { t, isAmharic } = useLanguage();
+  const { isAmharic } = useLanguage();
 
   return (
     <Stack.Navigator screenOptions={getStackScreenOptions(theme, isAmharic)}>
       <Stack.Screen
         name="ProfileScreen"
         component={ProfileScreen}
-        options={{ title: t('profile') }}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

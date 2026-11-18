@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Alert,
   TouchableOpacity,
-  Platform,
   Modal,
 } from 'react-native';
 import {
@@ -20,7 +19,7 @@ import {
   Chip,
   Divider,
 } from 'react-native-paper';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import EthiopianGregorianDatePicker from '../components/Common/EthiopianGregorianDatePicker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import i18n from '../translations';
 import CurrencyInput from '../components/Common/CurrencyInput';
@@ -30,7 +29,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useAppDate } from '../utils/dateUtils';
 
 const AddExpenseScreen = ({ route, navigation }) => {
-  const { formatDate } = useAppDate();
+  const { formatDate, calendar } = useAppDate();
   const { groupId: routeGroupId, expenseId, expense: routeExpense } = route?.params || {};
   const isEditing = Boolean(expenseId || routeExpense);
   const targetExpense = routeExpense || null;
@@ -718,28 +717,51 @@ const AddExpenseScreen = ({ route, navigation }) => {
           </View>
         )}
 
-        {/* Date Picker */}
+        {/* Advanced Ethiopian & Gregorian Date Selector */}
         <TouchableOpacity
-          style={[styles.dateButton, { backgroundColor: theme.colors.surface, borderColor: theme.dark ? '#3C3C3C' : '#ddd' }]}
+          style={[
+            styles.dateButton,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.dark ? '#3C3C3C' : '#E0E0E0',
+            },
+          ]}
           onPress={() => setShowDatePicker(true)}
+          activeOpacity={0.7}
         >
-          <Icon name="calendar" size={20} color={theme.dark ? '#aaa' : '#666'} />
-          <Text style={[styles.dateText, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
-            {formatDate(date)}
-          </Text>
+          <View style={styles.dateButtonLeft}>
+            <View style={styles.calendarIconSquircle}>
+              <Icon name="calendar-month-outline" size={20} color="#2E7D32" />
+            </View>
+            <View>
+              <Text style={styles.dateLabelHint}>
+                {i18n.t('date') || 'Date / ቀን'}
+              </Text>
+              <Text
+                style={[
+                  styles.dateText,
+                  { color: theme.dark ? '#FFFFFF' : '#333333' },
+                ]}
+              >
+                {formatDate(date)}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.calendarBadgePill}>
+            <Text style={styles.calendarBadgePillText}>
+              {calendar === 'ethiopian' ? '🇪🇹 ኢትዮጵያ' : '🌐 ፈረንጅ'}
+            </Text>
+            <Icon name="chevron-down" size={16} color="#2E7D32" />
+          </View>
         </TouchableOpacity>
 
-        {showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={(event, selectedDate) => {
-              setShowDatePicker(false);
-              if (selectedDate) setDate(selectedDate);
-            }}
-          />
-        )}
+        {/* Ethiopian & Gregorian Universal Date Picker Modal */}
+        <EthiopianGregorianDatePicker
+          visible={showDatePicker}
+          initialDate={date}
+          onConfirm={(selectedDate) => setDate(selectedDate)}
+          onClose={() => setShowDatePicker(false)}
+        />
 
         {/* Category Selector */}
         <TouchableOpacity
@@ -968,17 +990,48 @@ const styles = StyleSheet.create({
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 14,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#ddd',
-    gap: 8,
+  },
+  dateButtonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  calendarIconSquircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dateLabelHint: {
+    fontSize: 11,
+    color: '#888',
+    marginBottom: 2,
   },
   dateText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  calendarBadgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(46, 125, 50, 0.08)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  calendarBadgePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2E7D32',
   },
   categoryButton: {
     flexDirection: 'row',

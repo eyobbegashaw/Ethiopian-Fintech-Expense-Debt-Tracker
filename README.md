@@ -1,4 +1,4 @@
-# Ethio Debt Tracker - Ethiopian Splitwise Clone
+# እልፍ (Ilf) - Ethiopian Fintech Expense & Debt Tracker
 
 A production-ready expense and debt tracking application for the Ethiopian context.
 
