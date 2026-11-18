@@ -193,3 +193,138 @@ exports.deleteExpense = async (req, res) => {
     });
   }
 };
+
+// @desc    Get single expense by ID
+// @route   GET /api/v1/expenses/:id
+// @access  Private
+exports.getExpenseById = async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id)
+      .populate('paidBy', 'name avatar phone')
+      .populate('splits.userId', 'name avatar phone')
+      .populate('createdBy', 'name phone');
+    
+    if (!expense || expense.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Expense not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: expense
+    });
+  } catch (error) {
+    logger.error('Get expense by id error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching expense'
+    });
+  }
+};
+
+// @desc    Update expense
+// @route   PUT /api/v1/expenses/:id
+// @access  Private
+exports.updateExpense = async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id);
+    
+    if (!expense || expense.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Expense not found'
+      });
+    }
+    
+    const group = await Group.findById(expense.groupId);
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: 'Group not found'
+      });
+    }
+
+    const isCreator = expense.createdBy?.toString() === req.user.id;
+    const isPayer = expense.paidBy?.toString() === req.user.id;
+    const isAdmin = group.members.some(
+      m => m.userId.toString() === req.user.id && m.role === 'admin'
+    );
+    
+    if (!isCreator && !isPayer && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to edit this expense'
+      });
+    }
+
+    const {
+      description,
+      amount,
+      paidBy,
+      date,
+      category,
+      splits,
+      notes
+    } = req.body;
+
+    if (amount !== undefined && splits) {
+      const totalShares = splits.reduce((sum, split) => sum + split.share, 0);
+      if (Math.abs(totalShares - amount) > 0.01) {
+        return res.status(400).json({
+          success: false,
+          message: 'Split amounts do not sum to total amount'
+        });
+      }
+    }
+
+    if (description !== undefined) expense.description = description.trim();
+    if (amount !== undefined) expense.amount = amount;
+    if (paidBy !== undefined) expense.paidBy = paidBy;
+    if (date !== undefined) expense.date = date;
+    if (category !== undefined) expense.category = category;
+    if (splits !== undefined) expense.splits = splits;
+    if (notes !== undefined) expense.notes = notes;
+
+    await expense.save();
+
+    await expense.populate('paidBy', 'name avatar phone');
+    await expense.populate('splits.userId', 'name avatar phone');
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`group_${expense.groupId}`).emit('update-expense', expense);
+    }
+
+    res.json({
+      success: true,
+      data: expense
+    });
+
+    logger.info(`Expense updated: ${expense._id}`);
+  } catch (error) {
+    logger.error('Update expense error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating expense'
+    });
+  }
+};
+
+// @desc    Mark split as paid
+// @route   PUT /api/v1/expenses/:id/splits/:userId/pay
+// @access  Private
+exports.markSplitAsPaid = async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id);
+    if (!expense) {
+      return res.status(404).json({ success: false, message: 'Expense not found' });
+    }
+    const split = await expense.markSplitAsPaid(req.params.userId, req.body.settlementId);
+    res.json({ success: true, data: split });
+  } catch (error) {
+    logger.error('Mark split as paid error:', error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};

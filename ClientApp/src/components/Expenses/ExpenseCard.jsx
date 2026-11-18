@@ -7,11 +7,12 @@ import {
 } from 'react-native';
 import { Card, Avatar, useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import moment from 'moment';
 import i18n from '../../translations';
+import { useAppDate } from '../../utils/dateUtils';
 
 const ExpenseCard = ({ expense, onPress, currentUserId }) => {
   const theme = useTheme();
+  const { formatShort } = useAppDate();
 
   const getUserShare = () => {
     const userSplit = expense.splits.find(
@@ -41,10 +42,10 @@ const ExpenseCard = ({ expense, onPress, currentUserId }) => {
 
   return (
     <TouchableOpacity onPress={onPress}>
-      <Card style={styles.card}>
+      <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
         <Card.Content>
           <View style={styles.header}>
-            <View style={styles.categoryIcon}>
+            <View style={[styles.categoryIcon, { backgroundColor: theme.dark ? '#1B381E' : '#E8F5E9' }]}>
               <Icon
                 name={getCategoryIcon(expense.category)}
                 size={24}
@@ -52,17 +53,17 @@ const ExpenseCard = ({ expense, onPress, currentUserId }) => {
               />
             </View>
             <View style={styles.expenseInfo}>
-              <Text style={styles.description}>{expense.description}</Text>
-              <Text style={styles.payer}>
+              <Text style={[styles.description, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{expense.description}</Text>
+              <Text style={[styles.payer, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>
                 {i18n.t('paid_by')}: {expense.paidBy.name}
               </Text>
             </View>
             <Text style={styles.amount}>{expense.amount} ETB</Text>
           </View>
 
-          <View style={styles.footer}>
+          <View style={[styles.footer, { borderTopColor: theme.dark ? '#2C2C2C' : '#f0f0f0' }]}>
             <View style={styles.splitInfo}>
-              <Icon name="account-multiple" size={14} color="#999" />
+              <Icon name="account-multiple" size={14} color={theme.dark ? '#888' : '#999'} />
               <Text style={styles.splitText}>
                 {expense.splits.length} {i18n.t('people')}
               </Text>
@@ -92,7 +93,7 @@ const ExpenseCard = ({ expense, onPress, currentUserId }) => {
             )}
 
             <Text style={styles.date}>
-              {moment(expense.date).format('MMM DD')}
+              {formatShort(expense.date)}
             </Text>
           </View>
         </Card.Content>

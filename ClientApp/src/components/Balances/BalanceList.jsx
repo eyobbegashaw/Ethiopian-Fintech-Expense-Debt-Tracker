@@ -9,9 +9,11 @@ import {
 import { Avatar, Card, useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import i18n from '../../translations';
+import { useAuth } from '../../contexts/AuthContext';
 
 const BalanceList = ({ balances, members, onSettlePress, currentUserId }) => {
   const theme = useTheme();
+  const { user } = useAuth();
 
   const renderBalanceItem = ({ item }) => {
     const isCurrentUser = item.userId === currentUserId;
@@ -41,11 +43,25 @@ const BalanceList = ({ balances, members, onSettlePress, currentUserId }) => {
       <Card style={styles.balanceCard}>
         <Card.Content style={styles.balanceContent}>
           <View style={styles.userInfo}>
-            <Avatar.Text
-              size={50}
-              label={item.name.charAt(0)}
-              style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
-            />
+            {isCurrentUser && user?.avatar ? (
+              <Avatar.Image
+                size={50}
+                source={{ uri: user.avatar }}
+                style={styles.avatar}
+              />
+            ) : item.avatar ? (
+              <Avatar.Image
+                size={50}
+                source={{ uri: item.avatar }}
+                style={styles.avatar}
+              />
+            ) : (
+              <Avatar.Text
+                size={50}
+                label={item.name?.charAt(0) || '?'}
+                style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
+              />
+            )}
             <View style={styles.userDetails}>
               <Text style={styles.userName}>{item.name}</Text>
               {item.nickname && (

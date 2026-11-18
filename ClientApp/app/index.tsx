@@ -1,3 +1,4 @@
+import '../src/utils/fixFontTimeout';
 import React from 'react';
 import App from '../src/App';
 

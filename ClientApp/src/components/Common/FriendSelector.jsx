@@ -41,18 +41,27 @@ const FriendSelector = ({ friends, selectedFriends, onSelect, multiSelect = true
 
     return (
       <TouchableOpacity
-        style={styles.friendItem}
+        style={[
+          styles.friendItem,
+          { borderBottomColor: theme.dark ? '#333333' : '#f0f0f0' }
+        ]}
         onPress={() => toggleSelect(item)}
       >
         <View style={styles.friendInfo}>
           <Avatar name={item.name} size={40} />
           <View style={styles.friendDetails}>
-            <Text style={styles.friendName}>{item.name}</Text>
+            <Text style={[styles.friendName, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
+              {item.name}
+            </Text>
             {item.nickname && (
-              <Text style={styles.friendNickname}>@{item.nickname}</Text>
+              <Text style={[styles.friendNickname, { color: theme.dark ? '#AAAAAA' : '#999999' }]}>
+                @{item.nickname}
+              </Text>
             )}
             {item.phone && (
-              <Text style={styles.friendPhone}>{item.phone}</Text>
+              <Text style={[styles.friendPhone, { color: theme.dark ? '#888888' : '#999999' }]}>
+                {item.phone}
+              </Text>
             )}
           </View>
         </View>
@@ -66,7 +75,7 @@ const FriendSelector = ({ friends, selectedFriends, onSelect, multiSelect = true
           <Icon
             name={isSelected ? 'radiobox-marked' : 'radiobox-blank'}
             size={24}
-            color={isSelected ? theme.colors.primary : '#ccc'}
+            color={isSelected ? theme.colors.primary : (theme.dark ? '#666' : '#ccc')}
           />
         )}
       </TouchableOpacity>
@@ -75,18 +84,25 @@ const FriendSelector = ({ friends, selectedFriends, onSelect, multiSelect = true
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <Icon name="magnify" size={20} color="#999" />
+      <View style={[
+        styles.searchContainer,
+        {
+          backgroundColor: theme.dark ? '#262626' : '#f5f5f5',
+          borderColor: theme.dark ? '#3C3C3C' : '#e0e0e0',
+          borderWidth: 1,
+        }
+      ]}>
+        <Icon name="magnify" size={20} color={theme.dark ? '#AAA' : '#999'} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.dark ? '#FFFFFF' : '#333333' }]}
           placeholder={i18n.t('search_friends')}
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholderTextColor="#999"
+          placeholderTextColor={theme.dark ? '#888' : '#999'}
         />
         {searchQuery !== '' && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Icon name="close" size={20} color="#999" />
+            <Icon name="close" size={20} color={theme.dark ? '#AAA' : '#999'} />
           </TouchableOpacity>
         )}
       </View>

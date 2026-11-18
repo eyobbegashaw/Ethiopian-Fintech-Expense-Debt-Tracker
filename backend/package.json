@@ -4,6 +4,10 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "init-db": "node src/scripts/initDb.js",
+    "seed": "node src/scripts/seed.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -27,7 +31,6 @@
     "node-cron": "^4.2.1",
     "sharp": "^0.34.5",
     "socket.io": "^4.8.3",
-    "twilio": "^5.13.1",
     "uuid": "^13.0.0",
     "winston": "^3.19.0"
   },

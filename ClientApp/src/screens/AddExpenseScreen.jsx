@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,    
+  Text,
   ScrollView,
   StyleSheet,
   Alert,
   TouchableOpacity,
   Platform,
+  Modal,
 } from 'react-native';
 import {
   TextInput,
   Button,
   SegmentedButtons,
   List,
-  Modal,
-  Portal,
   useTheme,
   ActivityIndicator,
   Avatar,
@@ -28,9 +27,20 @@ import CurrencyInput from '../components/Common/CurrencyInput';
 import { groupService } from '../services/groupService';
 import { expenseService } from '../services/expenseService';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppDate } from '../utils/dateUtils';
 
 const AddExpenseScreen = ({ route, navigation }) => {
-  const { groupId } = route.params;
+  const { formatDate } = useAppDate();
+  const { groupId: routeGroupId, expenseId, expense: routeExpense } = route?.params || {};
+  const isEditing = Boolean(expenseId || routeExpense);
+  const targetExpense = routeExpense || null;
+  const targetExpenseId = expenseId || targetExpense?._id;
+  const targetGroupId =
+    routeGroupId ||
+    (typeof targetExpense?.groupId === 'object'
+      ? targetExpense?.groupId?._id
+      : targetExpense?.groupId);
+
   const theme = useTheme();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -38,16 +48,16 @@ const AddExpenseScreen = ({ route, navigation }) => {
   const [members, setMembers] = useState([]);
   
   // Form state
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState(targetExpense?.description || '');
+  const [amount, setAmount] = useState(targetExpense?.amount ? targetExpense.amount.toString() : '');
   const [paidBy, setPaidBy] = useState(null);
   const [splitType, setSplitType] = useState('equal');
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [splits, setSplits] = useState({});
   const [percentages, setPercentages] = useState({});
-  const [date, setDate] = useState(new Date());
-  const [category, setCategory] = useState('Other');
-  const [notes, setNotes] = useState('');
+  const [date, setDate] = useState(targetExpense?.date ? new Date(targetExpense.date) : new Date());
+  const [category, setCategory] = useState(targetExpense?.category || 'Other');
+  const [notes, setNotes] = useState(targetExpense?.notes || '');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showMemberSelector, setShowMemberSelector] = useState(false);
   const [showPayerSelector, setShowPayerSelector] = useState(false);
@@ -67,77 +77,148 @@ const AddExpenseScreen = ({ route, navigation }) => {
   ];
 
   useEffect(() => {
-    loadGroup();
+    navigation.setOptions({
+      title: isEditing
+        ? (i18n.t('edit_expense') || 'Edit Expense')
+        : (i18n.t('add_expense') || 'Add Expense'),
+    });
+  }, [isEditing]);
+
+  useEffect(() => {
+    initScreen();
   }, []);
 
-  useEffect(() => {
-    if (members.length > 0 && !paidBy) {
-      const currentUser = members.find(m => m.userId._id === user._id);
-      if (currentUser) {
-        setPaidBy(currentUser);
-      }
-    }
-  }, [members]);
-
-  useEffect(() => {
-    if (members.length > 0 && selectedMembers.length === 0) {
-      setSelectedMembers(members.map(m => m.userId));
-    }
-  }, [members]);
-
-  useEffect(() => {
-    calculateSplits();
-  }, [amount, splitType, selectedMembers, splits, percentages]);
-
-  const loadGroup = async () => {
+  const initScreen = async () => {
     try {
       setLoading(true);
-      const response = await groupService.getGroup(groupId);
-      setGroup(response.data.group);
-      setMembers(response.data.group.members);
+      let exp = targetExpense;
+      if (!exp && targetExpenseId) {
+        const expRes = await expenseService.getExpenseById(targetExpenseId);
+        exp = expRes.data;
+      }
+
+      const gid =
+        targetGroupId ||
+        (typeof exp?.groupId === 'object'
+          ? exp?.groupId?._id || exp?.groupId?.id
+          : exp?.groupId || exp?.group_id);
+
+      if (!gid) {
+        Alert.alert(i18n.t('error'), 'Group information is missing');
+        navigation.goBack();
+        return;
+      }
+
+      const response = await groupService.getGroup(gid);
+      const grp = response.data.group;
+      setGroup(grp);
+      const grpMembers = grp.members || [];
+      setMembers(grpMembers);
+
+      if (exp) {
+        if (exp.description) setDescription(exp.description);
+        if (exp.amount) setAmount(exp.amount.toString());
+        if (exp.category) setCategory(exp.category);
+        if (exp.date) setDate(new Date(exp.date));
+        if (exp.notes) setNotes(exp.notes);
+
+        // Find and preselect payer
+        const payerId = exp.paidBy?._id || exp.paidBy;
+        const foundPayer = grpMembers.find(
+          m => (m.userId?._id || m.userId) === payerId
+        );
+        if (foundPayer) {
+          setPaidBy(foundPayer);
+        } else {
+          const currentUser = grpMembers.find(
+            m => (m.userId?._id || m.userId) === user._id
+          );
+          if (currentUser) setPaidBy(currentUser);
+        }
+
+        // Prepopulate splits and split members
+        if (exp.splits && exp.splits.length > 0) {
+          const splitUserIds = exp.splits.map(s => s.userId?._id || s.userId);
+          const sel = grpMembers
+            .filter(m => splitUserIds.includes(m.userId?._id || m.userId))
+            .map(m => m.userId);
+          setSelectedMembers(sel);
+
+          const preSplits = {};
+          const prePercentages = {};
+          let hasPct = false;
+          let allEqual = true;
+          const firstShare = exp.splits[0]?.share;
+
+          exp.splits.forEach(s => {
+            const uid = s.userId?._id || s.userId;
+            preSplits[uid] = s.share;
+            if (s.percentage !== undefined) {
+              prePercentages[uid] = s.percentage;
+              hasPct = true;
+            }
+            if (Math.abs(s.share - firstShare) > 0.05) {
+              allEqual = false;
+            }
+          });
+
+          setSplits(preSplits);
+          if (hasPct) {
+            setPercentages(prePercentages);
+            setSplitType('percentage');
+          } else if (allEqual) {
+            setSplitType('equal');
+          } else {
+            setSplitType('custom');
+          }
+        }
+      } else {
+        const currentUser = grpMembers.find(
+          m => (m.userId?._id || m.userId) === user._id
+        );
+        if (currentUser) setPaidBy(currentUser);
+        setSelectedMembers(grpMembers.map(m => m.userId));
+      }
     } catch (error) {
-      Alert.alert(i18n.t('error'), error.response?.data?.message || i18n.t('something_wrong'));
+      Alert.alert(
+        i18n.t('error'),
+        error.response?.data?.message || i18n.t('something_wrong')
+      );
       navigation.goBack();
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateSplits = () => {
-    const amountNum = parseFloat(amount) || 0;
-    const numMembers = selectedMembers.length;
-
-    if (splitType === 'equal' && numMembers > 0) {
-      const sharePerPerson = amountNum / numMembers;
-      const newSplits = {};
-      selectedMembers.forEach(member => {
-        newSplits[member._id] = sharePerPerson;
-      });
-      setSplits(newSplits);
-      setSplitTotalValid(true);
-    } 
-    else if (splitType === 'percentage' && numMembers > 0) {
-      const newPercentages = { ...percentages };
-      if (Object.keys(newPercentages).length === 0) {
-        const equalPercent = 100 / numMembers;
+  useEffect(() => {
+    if (splitType === 'equal') {
+      const amountNum = parseFloat(amount) || 0;
+      const numMembers = selectedMembers.length;
+      if (numMembers > 0) {
+        const sharePerPerson = amountNum / numMembers;
+        const newSplits = {};
         selectedMembers.forEach(member => {
-          newPercentages[member._id] = equalPercent;
+          newSplits[member._id] = sharePerPerson;
         });
-        setPercentages(newPercentages);
+        setSplits(newSplits);
+        setSplitTotalValid(true);
       }
-      
-      const newSplits = {};
-      let total = 0;
-      selectedMembers.forEach(member => {
-        const percent = newPercentages[member._id] || 0;
-        const share = (percent / 100) * amountNum;
-        newSplits[member._id] = share;
-        total += share;
-      });
-      setSplits(newSplits);
+    } else if (splitType === 'percentage') {
+      const amountNum = parseFloat(amount) || 0;
+      const totalPercent = Object.values(percentages).reduce(
+        (sum, val) => sum + val,
+        0
+      );
+      setSplitTotalValid(Math.abs(totalPercent - 100) < 0.01);
+    } else if (splitType === 'custom') {
+      const amountNum = parseFloat(amount) || 0;
+      const total = Object.values(splits).reduce(
+        (sum, val) => sum + (parseFloat(val) || 0),
+        0
+      );
       setSplitTotalValid(Math.abs(total - amountNum) < 0.01);
     }
-  };
+  }, [amount, splitType, selectedMembers]);
 
   const updateCustomSplit = (memberId, value) => {
     const amountNum = parseFloat(amount) || 0;
@@ -203,17 +284,29 @@ const AddExpenseScreen = ({ route, navigation }) => {
     if (!validateForm()) return;
 
     // Prepare splits array
-    const splitsArray = selectedMembers.map(member => ({
-      userId: member._id,
-      share: splits[member._id] || 0,
-      percentage: splitType === 'percentage' ? percentages[member._id] : undefined,
-    }));
+    const splitsArray = selectedMembers.map(member => {
+      const mId = member._id || member.id;
+      return {
+        userId: mId,
+        share: splits[mId] || 0,
+        amount: splits[mId] || 0,
+        percentage: splitType === 'percentage' ? percentages[mId] : undefined,
+      };
+    });
+
+    const gid = targetGroupId || group?._id || group?.id;
+    const payerUserId =
+      paidBy?.userId?._id ||
+      paidBy?.userId?.id ||
+      paidBy?.userId ||
+      paidBy?._id ||
+      paidBy?.id;
 
     const expenseData = {
-      groupId,
+      groupId: gid,
       description: description.trim(),
       amount: parseFloat(amount),
-      paidBy: paidBy.userId._id,
+      paidBy: payerUserId,
       date: date.toISOString(),
       category,
       splits: splitsArray,
@@ -222,11 +315,25 @@ const AddExpenseScreen = ({ route, navigation }) => {
 
     try {
       setLoading(true);
-      await expenseService.addExpense(expenseData);
-      Alert.alert(i18n.t('success'), i18n.t('expense_added_success'));
+      if (isEditing) {
+        await expenseService.updateExpense(targetExpenseId, expenseData);
+        Alert.alert(
+          i18n.t('success'),
+          i18n.t('expense_updated_success') || 'Expense updated successfully!'
+        );
+      } else {
+        await expenseService.addExpense(expenseData);
+        Alert.alert(
+          i18n.t('success'),
+          i18n.t('expense_added_success') || 'Expense added successfully!'
+        );
+      }
       navigation.goBack();
     } catch (error) {
-      Alert.alert(i18n.t('error'), error.response?.data?.message || i18n.t('something_wrong'));
+      Alert.alert(
+        i18n.t('error'),
+        error.response?.data?.message || i18n.t('something_wrong')
+      );
     } finally {
       setLoading(false);
     }
@@ -260,7 +367,17 @@ const AddExpenseScreen = ({ route, navigation }) => {
         : (splits[member._id] || 0).toString();
       
       return (
-        <View key={member._id} style={styles.splitInputRow}>
+        <View
+          key={member._id}
+          style={[
+            styles.splitInputRow,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.dark ? '#3C3C3C' : '#e0e0e0',
+              borderWidth: theme.dark ? 1 : 0,
+            }
+          ]}
+        >
           <View style={styles.splitMemberInfo}>
             <Avatar.Text
               size={40}
@@ -268,7 +385,9 @@ const AddExpenseScreen = ({ route, navigation }) => {
               style={[styles.splitAvatar, { backgroundColor: theme.colors.primary }]}
             />
             <View>
-              <Text style={styles.splitMemberName}>{member.name}</Text>
+              <Text style={[styles.splitMemberName, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
+                {member.name}
+              </Text>
               {member.nickname && (
                 <Text style={styles.splitMemberNickname}>@{member.nickname}</Text>
               )}
@@ -279,12 +398,19 @@ const AddExpenseScreen = ({ route, navigation }) => {
             {isPercentage ? (
               <View style={styles.percentageWrapper}>
                 <TextInput
-                  style={styles.percentageInput}
+                  style={[
+                    styles.percentageInput,
+                    {
+                      backgroundColor: theme.dark ? '#262626' : '#fff',
+                      borderColor: theme.dark ? '#3C3C3C' : '#ddd',
+                      color: theme.dark ? '#FFFFFF' : '#333333',
+                    }
+                  ]}
                   value={value}
                   onChangeText={(text) => updatePercentage(member._id, text)}
                   keyboardType="decimal-pad"
                   placeholder="0"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={theme.dark ? '#888888' : '#999'}
                 />
                 <Text style={styles.percentageSymbol}>%</Text>
               </View>
@@ -307,164 +433,173 @@ const AddExpenseScreen = ({ route, navigation }) => {
     });
   };
 
-  const MemberSelectorModal = () => (
-    <Portal>
-      <Modal
-        visible={showMemberSelector}
-        onDismiss={() => setShowMemberSelector(false)}
-        contentContainerStyle={styles.modalContainer}
-      >
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>{i18n.t('split_with')}</Text>
-          <Button onPress={() => setShowMemberSelector(false)}>
-            {i18n.t('done')}
-          </Button>
-        </View>
-        <ScrollView>
-          {members.map(member => {
-            const isSelected = selectedMembers.some(m => m._id === member.userId._id);
-            return (
-              <TouchableOpacity
-                key={member.userId._id}
-                style={styles.memberSelectItem}
-                onPress={() => {
-                  if (isSelected) {
-                    setSelectedMembers(selectedMembers.filter(m => m._id !== member.userId._id));
-                  } else {
-                    setSelectedMembers([...selectedMembers, member.userId]);
-                  }
-                }}
-              >
-                <View style={styles.memberSelectInfo}>
-                  <Avatar.Text
-                    size={40}
-                    label={member.userId.name.charAt(0)}
-                    style={[styles.memberSelectAvatar, { backgroundColor: theme.colors.primary }]}
-                  />
-                  <View>
-                    <Text style={styles.memberSelectName}>
-                      {member.nickname || member.userId.name}
-                    </Text>
-                    {member.nickname && (
-                      <Text style={styles.memberSelectRealName}>{member.userId.name}</Text>
-                    )}
+  const renderMemberSelectorModal = () => (
+    <Modal
+      visible={showMemberSelector}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowMemberSelector(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContainer, { backgroundColor: theme.colors.surface }]}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{i18n.t('split_with')}</Text>
+            <Button onPress={() => setShowMemberSelector(false)}>
+              {i18n.t('done')}
+            </Button>
+          </View>
+          <ScrollView>
+            {members.map(member => {
+              const isSelected = selectedMembers.some(m => m._id === member.userId._id);
+              return (
+                <TouchableOpacity
+                  key={member.userId._id}
+                  style={styles.memberSelectItem}
+                  onPress={() => {
+                    if (isSelected) {
+                      setSelectedMembers(selectedMembers.filter(m => m._id !== member.userId._id));
+                    } else {
+                      setSelectedMembers([...selectedMembers, member.userId]);
+                    }
+                  }}
+                >
+                  <View style={styles.memberSelectInfo}>
+                    <Avatar.Text
+                      size={40}
+                      label={member.userId?.name ? member.userId.name.charAt(0) : 'U'}
+                      style={[styles.memberSelectAvatar, { backgroundColor: theme.colors.primary }]}
+                    />
+                    <View>
+                      <Text style={styles.memberSelectName}>
+                        {member.nickname || member.userId?.name || 'User'}
+                      </Text>
+                      {member.nickname && (
+                        <Text style={styles.memberSelectRealName}>{member.userId?.name}</Text>
+                      )}
+                    </View>
                   </View>
-                </View>
-                <Icon
-                  name={isSelected ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
-                  size={24}
-                  color={isSelected ? theme.colors.primary : '#ccc'}
-                />
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </Modal>
-    </Portal>
+                  <Icon
+                    name={isSelected ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
+                    size={24}
+                    color={isSelected ? theme.colors.primary : '#ccc'}
+                  />
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 
-  const PayerSelectorModal = () => (
-    <Portal>
-      <Modal
-        visible={showPayerSelector}
-        onDismiss={() => setShowPayerSelector(false)}
-        contentContainerStyle={styles.modalContainer}
-      >
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>{i18n.t('paid_by')}</Text>
-          <Button onPress={() => setShowPayerSelector(false)}>
-            {i18n.t('done')}
-          </Button>
-        </View>
-        {members.map(member => (
-          <TouchableOpacity
-            key={member.userId._id}
-            style={styles.payerSelectItem}
-            onPress={() => {
-              setPaidBy(member);
-              setShowPayerSelector(false);
-            }}
-          >
-            <View style={styles.payerSelectInfo}>
-              <Avatar.Text
-                size={50}
-                label={member.userId.name.charAt(0)}
-                style={[styles.payerSelectAvatar, { backgroundColor: theme.colors.primary }]}
-              />
-              <View>
-                <Text style={styles.payerSelectName}>
-                  {member.nickname || member.userId.name}
-                </Text>
-                {member.nickname && (
-                  <Text style={styles.payerSelectRealName}>{member.userId.name}</Text>
-                )}
-                {member.userId._id === user._id && (
-                  <Chip icon="account" size="small" style={styles.youChip}>
-                    {i18n.t('you')}
-                  </Chip>
-                )}
-              </View>
-            </View>
-            {paidBy?.userId._id === member.userId._id && (
-              <Icon name="check-circle" size={24} color={theme.colors.primary} />
-            )}
-          </TouchableOpacity>
-        ))}
-      </Modal>
-    </Portal>
-  );
-
-  const CategorySelectorModal = () => (
-    <Portal>
-      <Modal
-        visible={showCategorySelector}
-        onDismiss={() => setShowCategorySelector(false)}
-        contentContainerStyle={styles.modalContainer}
-      >
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>{i18n.t('expense_category')}</Text>
-          <Button onPress={() => setShowCategorySelector(false)}>
-            {i18n.t('done')}
-          </Button>
-        </View>
-        <View style={styles.categoryGrid}>
-          {categories.map(cat => (
+  const renderPayerSelectorModal = () => (
+    <Modal
+      visible={showPayerSelector}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowPayerSelector(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContainer, { backgroundColor: theme.colors.surface }]}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{i18n.t('paid_by')}</Text>
+            <Button onPress={() => setShowPayerSelector(false)}>
+              {i18n.t('done')}
+            </Button>
+          </View>
+          {members.map(member => (
             <TouchableOpacity
-              key={cat.value}
-              style={[
-                styles.categoryItem,
-                category === cat.value && styles.categoryItemActive,
-              ]}
+              key={member.userId._id}
+              style={styles.payerSelectItem}
               onPress={() => {
-                setCategory(cat.value);
-                setShowCategorySelector(false);
+                setPaidBy(member);
+                setShowPayerSelector(false);
               }}
             >
-              <View
-                style={[
-                  styles.categoryIconContainer,
-                  category === cat.value && styles.categoryIconContainerActive,
-                ]}
-              >
-                <Icon
-                  name={cat.icon}
-                  size={24}
-                  color={category === cat.value ? '#fff' : '#666'}
+              <View style={styles.payerSelectInfo}>
+                <Avatar.Text
+                  size={50}
+                  label={member.userId?.name ? member.userId.name.charAt(0) : 'U'}
+                  style={[styles.payerSelectAvatar, { backgroundColor: theme.colors.primary }]}
                 />
+                <View>
+                  <Text style={[styles.payerSelectName, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
+                    {member.nickname || member.userId?.name || 'User'}
+                  </Text>
+                  {member.nickname && (
+                    <Text style={styles.payerSelectRealName}>{member.userId?.name}</Text>
+                  )}
+                  {member.userId?._id === user?._id && (
+                    <Chip icon="account" size="small" style={styles.youChip}>
+                      {i18n.t('you')}
+                    </Chip>
+                  )}
+                </View>
               </View>
-              <Text
-                style={[
-                  styles.categoryLabel,
-                  category === cat.value && styles.categoryLabelActive,
-                ]}
-              >
-                {i18n.t(cat.label)}
-              </Text>
+              {paidBy?.userId?._id === member.userId?._id && (
+                <Icon name="check-circle" size={24} color={theme.colors.primary} />
+              )}
             </TouchableOpacity>
           ))}
         </View>
-      </Modal>
-    </Portal>
+      </View>
+    </Modal>
+  );
+
+  const renderCategorySelectorModal = () => (
+    <Modal
+      visible={showCategorySelector}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowCategorySelector(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContainer, { backgroundColor: theme.colors.surface }]}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{i18n.t('expense_category')}</Text>
+            <Button onPress={() => setShowCategorySelector(false)}>
+              {i18n.t('done')}
+            </Button>
+          </View>
+          <View style={styles.categoryGrid}>
+            {categories.map(cat => (
+              <TouchableOpacity
+                key={cat.value}
+                style={[
+                  styles.categoryItem,
+                  category === cat.value && styles.categoryItemActive,
+                ]}
+                onPress={() => {
+                  setCategory(cat.value);
+                  setShowCategorySelector(false);
+                }}
+              >
+                <View
+                  style={[
+                    styles.categoryIconContainer,
+                    category === cat.value && styles.categoryIconContainerActive,
+                  ]}
+                >
+                  <Icon
+                    name={cat.icon}
+                    size={24}
+                    color={category === cat.value ? '#fff' : '#666'}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.categoryLabel,
+                    category === cat.value && styles.categoryLabelActive,
+                  ]}
+                >
+                  {i18n.t(cat.label)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 
   if (loading && !group) {
@@ -480,7 +615,7 @@ const AddExpenseScreen = ({ route, navigation }) => {
   const remainingAmount = amountNum - totalSplit;
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.form}>
         {/* Description Input */}
         <TextInput
@@ -488,9 +623,12 @@ const AddExpenseScreen = ({ route, navigation }) => {
           value={description}
           onChangeText={setDescription}
           mode="outlined"
-          style={styles.input}
+          style={[styles.input, { backgroundColor: theme.colors.surface }]}
           placeholder={i18n.t('what_was_it_for')}
           left={<TextInput.Icon icon="receipt" />}
+          textColor={theme.dark ? '#FFFFFF' : '#333333'}
+          outlineColor={theme.dark ? '#666666' : '#CCCCCC'}
+          activeOutlineColor={theme.colors.primary}
         />
 
         {/* Amount Input */}
@@ -502,10 +640,10 @@ const AddExpenseScreen = ({ route, navigation }) => {
 
         {/* Paid By Selector */}
         <TouchableOpacity
-          style={styles.selectorButton}
+          style={[styles.selectorButton, { backgroundColor: theme.colors.surface, borderColor: theme.dark ? '#3C3C3C' : '#ddd' }]}
           onPress={() => setShowPayerSelector(true)}
         >
-          <Text style={styles.selectorLabel}>{i18n.t('paid_by')}</Text>
+          <Text style={[styles.selectorLabel, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{i18n.t('paid_by')}</Text>
           <View style={styles.selectorValue}>
             <View style={styles.paidByInfo}>
               <Avatar.Text
@@ -513,31 +651,31 @@ const AddExpenseScreen = ({ route, navigation }) => {
                 label={paidBy?.userId?.name?.charAt(0) || '?'}
                 style={styles.paidByAvatar}
               />
-              <Text style={styles.selectorText}>
+              <Text style={[styles.selectorText, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
                 {paidBy?.nickname || paidBy?.userId?.name || i18n.t('select_payer')}
               </Text>
             </View>
-            <Icon name="chevron-down" size={20} color="#666" />
+            <Icon name="chevron-down" size={20} color={theme.dark ? '#aaa' : '#666'} />
           </View>
         </TouchableOpacity>
 
         {/* Split With Selector */}
         <TouchableOpacity
-          style={styles.selectorButton}
+          style={[styles.selectorButton, { backgroundColor: theme.colors.surface, borderColor: theme.dark ? '#3C3C3C' : '#ddd' }]}
           onPress={() => setShowMemberSelector(true)}
         >
-          <Text style={styles.selectorLabel}>{i18n.t('split_with')}</Text>
+          <Text style={[styles.selectorLabel, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{i18n.t('split_with')}</Text>
           <View style={styles.selectorValue}>
-            <Text style={styles.selectorText}>
+            <Text style={[styles.selectorText, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
               {selectedMembers.length} {i18n.t('people')}
             </Text>
-            <Icon name="chevron-down" size={20} color="#666" />
+            <Icon name="chevron-down" size={20} color={theme.dark ? '#aaa' : '#666'} />
           </View>
         </TouchableOpacity>
 
         {/* Split Type Selection */}
         <View style={styles.splitTypeContainer}>
-          <Text style={styles.splitTypeLabel}>{i18n.t('split_method')}</Text>
+          <Text style={[styles.splitTypeLabel, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{i18n.t('split_method')}</Text>
           <SegmentedButtons
             value={splitType}
             onValueChange={setSplitType}
@@ -546,14 +684,14 @@ const AddExpenseScreen = ({ route, navigation }) => {
               { value: 'percentage', label: i18n.t('percentage'), icon: 'percent' },
               { value: 'custom', label: i18n.t('custom'), icon: 'pencil' },
             ]}
-            style={styles.segmentedButton}
+            style={[styles.segmentedButton, { backgroundColor: theme.colors.surface }]}
           />
         </View>
 
         {/* Split Inputs */}
         {selectedMembers.length > 0 && (
           <View style={styles.splitsContainer}>
-            <Text style={styles.splitsTitle}>{i18n.t('split_details')}</Text>
+            <Text style={[styles.splitsTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{i18n.t('split_details')}</Text>
             {renderSplitInputs()}
             
             {/* Total Validation */}
@@ -582,12 +720,12 @@ const AddExpenseScreen = ({ route, navigation }) => {
 
         {/* Date Picker */}
         <TouchableOpacity
-          style={styles.dateButton}
+          style={[styles.dateButton, { backgroundColor: theme.colors.surface, borderColor: theme.dark ? '#3C3C3C' : '#ddd' }]}
           onPress={() => setShowDatePicker(true)}
         >
-          <Icon name="calendar" size={20} color="#666" />
-          <Text style={styles.dateText}>
-            {date.toLocaleDateString()}
+          <Icon name="calendar" size={20} color={theme.dark ? '#aaa' : '#666'} />
+          <Text style={[styles.dateText, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
+            {formatDate(date)}
           </Text>
         </TouchableOpacity>
 
@@ -605,14 +743,14 @@ const AddExpenseScreen = ({ route, navigation }) => {
 
         {/* Category Selector */}
         <TouchableOpacity
-          style={styles.categoryButton}
+          style={[styles.categoryButton, { backgroundColor: theme.colors.surface, borderColor: theme.dark ? '#3C3C3C' : '#ddd' }]}
           onPress={() => setShowCategorySelector(true)}
         >
-          <Icon name="tag" size={20} color="#666" />
-          <Text style={styles.categoryText}>
+          <Icon name="tag" size={20} color={theme.dark ? '#aaa' : '#666'} />
+          <Text style={[styles.categoryText, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
             {i18n.t(categories.find(c => c.value === category)?.label || 'other')}
           </Text>
-          <Icon name="chevron-down" size={20} color="#666" />
+          <Icon name="chevron-down" size={20} color={theme.dark ? '#aaa' : '#666'} />
         </TouchableOpacity>
 
         {/* Notes Input */}
@@ -623,7 +761,10 @@ const AddExpenseScreen = ({ route, navigation }) => {
           mode="outlined"
           multiline
           numberOfLines={3}
-          style={styles.notesInput}
+          style={[styles.notesInput, { backgroundColor: theme.colors.surface }]}
+          textColor={theme.dark ? '#FFFFFF' : '#333333'}
+          outlineColor={theme.dark ? '#666666' : '#CCCCCC'}
+          activeOutlineColor={theme.colors.primary}
           placeholder={i18n.t('add_notes')}
         />
 
@@ -635,15 +776,17 @@ const AddExpenseScreen = ({ route, navigation }) => {
           disabled={loading}
           style={styles.submitButton}
           contentStyle={styles.submitButtonContent}
-          icon="check"
+          icon={isEditing ? 'content-save' : 'check'}
         >
-          {i18n.t('add_expense')}
+          {isEditing
+            ? (i18n.t('save_changes') || i18n.t('edit_expense') || 'Save Changes')
+            : (i18n.t('add_expense') || 'Add Expense')}
         </Button>
       </View>
 
-      <MemberSelectorModal />
-      <PayerSelectorModal />
-      <CategorySelectorModal />
+      {renderMemberSelectorModal()}
+      {renderPayerSelectorModal()}
+      {renderCategorySelectorModal()}
     </ScrollView>
   );
 };
@@ -659,10 +802,8 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 16,
-    backgroundColor: '#fff',
   },
   selectorButton: {
-    backgroundColor: '#fff',
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
@@ -701,7 +842,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   segmentedButton: {
-    backgroundColor: '#fff',
   },
   splitsContainer: {
     marginTop: 8,
@@ -719,7 +859,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
     paddingVertical: 8,
-    backgroundColor: '#fff',
     borderRadius: 8,
     paddingHorizontal: 12,
   },
@@ -829,7 +968,6 @@ const styles = StyleSheet.create({
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
@@ -845,7 +983,6 @@ const styles = StyleSheet.create({
   categoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
@@ -860,7 +997,6 @@ const styles = StyleSheet.create({
   },
   notesInput: {
     marginBottom: 24,
-    backgroundColor: '#fff',
   },
   submitButton: {
     backgroundColor: '#2E7D32',
@@ -869,9 +1005,13 @@ const styles = StyleSheet.create({
   submitButtonContent: {
     paddingVertical: 8,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    padding: 16,
+  },
   modalContainer: {
-    backgroundColor: '#fff',
-    margin: 20,
     borderRadius: 12,
     maxHeight: '80%',
   },

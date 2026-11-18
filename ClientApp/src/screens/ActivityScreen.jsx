@@ -16,14 +16,15 @@ import {
 } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import moment from 'moment';
 import i18n from '../translations';
 import { activityService } from '../services/activityService';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppDate } from '../utils/dateUtils';
 
 const ActivityScreen = ({ navigation }) => {
   const theme = useTheme();
   const { user } = useAuth();
+  const { formatRelative } = useAppDate();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -32,9 +33,10 @@ const ActivityScreen = ({ navigation }) => {
   const loadActivities = async () => {
     try {
       const response = await activityService.getActivities(filter);
-      setActivities(response.data);
+      setActivities(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error loading activities:', error);
+      setActivities([]);
     } finally {
       setLoading(false);
     }
@@ -64,6 +66,10 @@ const ActivityScreen = ({ navigation }) => {
         return 'account-minus';
       case 'group_created':
         return 'account-group';
+      case 'debt_reminder':
+        return 'bell-ring';
+      case 'general':
+        return 'bell';
       default:
         return 'bell';
     }
@@ -75,6 +81,8 @@ const ActivityScreen = ({ navigation }) => {
         return '#FF9800';
       case 'settlement':
         return '#4CAF50';
+      case 'debt_reminder':
+        return '#E91E63';
       case 'member_joined':
         return '#2196F3';
       case 'member_left':
@@ -111,7 +119,7 @@ const ActivityScreen = ({ navigation }) => {
         }
       }}
     >
-      <Card style={styles.activityCard}>
+      <Card style={[styles.activityCard, { backgroundColor: theme.colors.surface }]}>
         <Card.Content>
           <View style={styles.activityContent}>
             <View
@@ -127,17 +135,17 @@ const ActivityScreen = ({ navigation }) => {
               />
             </View>
             <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>
+              <Text style={[styles.activityTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
                 {getActivityTitle(item)}
               </Text>
               <Text style={styles.activityTime}>
-                {moment(item.createdAt).fromNow()}
+                {formatRelative(item.createdAt)}
               </Text>
               {item.groupName && (
                 <Chip
                   icon="account-group"
-                  style={styles.groupChip}
-                  textStyle={styles.groupChipText}
+                  style={[styles.groupChip, { backgroundColor: theme.dark ? '#2A2A2A' : '#f0f0f0' }]}
+                  textStyle={[styles.groupChipText, { color: theme.dark ? '#CCC' : '#333' }]}
                 >
                   {item.groupName}
                 </Chip>
@@ -152,7 +160,7 @@ const ActivityScreen = ({ navigation }) => {
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Icon name="bell-off" size={64} color="#ccc" />
-      <Text style={styles.emptyTitle}>{i18n.t('no_activity')}</Text>
+      <Text style={[styles.emptyTitle, { color: theme.dark ? '#FFFFFF' : '#666' }]}>{i18n.t('no_activity')}</Text>
       <Text style={styles.emptyText}>
         {i18n.t('no_activity_description')}
       </Text>
@@ -161,41 +169,41 @@ const ActivityScreen = ({ navigation }) => {
 
   const filters = [
     { value: 'all', label: i18n.t('all') },
+    { value: 'notifications', label: i18n.t('notifications') },
     { value: 'expenses', label: i18n.t('expenses') },
     { value: 'settlements', label: i18n.t('settlements') },
-    { value: 'groups', label: i18n.t('groups') },
   ];
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{i18n.t('recent_activity')}</Text>
+      <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.dark ? '#2C2C2C' : '#e0e0e0' }]}>
+        <Text style={[styles.headerTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{i18n.t('recent_activity')}</Text>
       </View>
 
       {/* Filters */}
-      <View style={styles.filtersContainer}>
+      <View style={[styles.filtersContainer, { backgroundColor: theme.colors.surface }]}>
         {filters.map((f) => (
           <TouchableOpacity
             key={f.value}
             style={[
               styles.filterChip,
-              filter === f.value && styles.filterChipActive,
+              { backgroundColor: filter === f.value ? (theme.dark ? '#1B381E' : '#E8F5E9') : (theme.dark ? '#2A2A2A' : '#f5f5f5') },
             ]}
             onPress={() => setFilter(f.value)}
           >
             <Text
               style={[
                 styles.filterText,
-                filter === f.value && styles.filterTextActive,
+                { color: filter === f.value ? theme.colors.primary : (theme.dark ? '#AAAAAA' : '#666666') },
               ]}
             >
               {f.label}

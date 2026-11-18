@@ -36,7 +36,8 @@ const groupSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
+    index: true
   },
   category: {
     type: String,
@@ -54,13 +55,16 @@ const groupSchema = new mongoose.Schema({
   coverImage: String,
   isArchived: {
     type: Boolean,
-    default: false
+    default: false,
+    index: true
   }
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
+
+groupSchema.index({ 'members.userId': 1 });
 
 // Virtual for expenses
 groupSchema.virtual('expenses', {

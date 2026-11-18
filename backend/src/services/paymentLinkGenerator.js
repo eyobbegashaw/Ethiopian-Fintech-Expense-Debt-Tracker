@@ -3,57 +3,59 @@ const logger = require('../utils/logger');
 
 class PaymentLinkGenerator {
   /**
-   * Generate TeleBirr payment link/USSD code
+   * Generate TeleBirr payment link/USSD code & app activation details
    * @param {String} phone - Phone number to pay
    * @param {Number} amount - Amount to pay
    * @param {String} reference - Transaction reference
    * @returns {Object} - Payment details
    */
   static generateTeleBirrPayment(phone, amount, reference) {
-    // Format Ethiopian phone number
     const formattedPhone = phone.startsWith('0') ? phone.slice(1) : phone;
-    
-    // Generate USSD code for TeleBirr
-    const ussdCode = `*899#*${formattedPhone}*${Math.round(amount)}#`;
-    
-    // In production, this would generate an actual payment link
-    const paymentLink = `telebirr://pay?phone=${formattedPhone}&amount=${amount}&ref=${reference}`;
-    
+    const baseUssd = process.env.TELEBIRR_USSD_CODE || '*127#';
+    const cleanPrefix = baseUssd.replace(/#/g, '');
+    const ussdCode = `${cleanPrefix}*${formattedPhone}*${Math.round(amount)}#`;
+
     return {
       method: 'TeleBirr',
+      appName: 'Telebirr',
+      appPackage: 'cn.tydic.ethiopay',
+      appScheme: 'telebirr://',
+      appPlayStoreUrl: 'https://play.google.com/store/apps/details?id=cn.tydic.ethiopay',
       ussdCode,
-      paymentLink,
-      instructions: `Dial ${ussdCode} on your Telebirr registered number to pay ${amount} ETB`
+      baseUssd,
+      paymentLink: `telebirr://pay?phone=${formattedPhone}&amount=${amount}&ref=${reference}`,
+      instructions: `Open Telebirr app or dial ${ussdCode} to pay ${amount} ETB`
     };
   }
-  
+
   /**
-   * Generate CBE Birr payment link/USSD code
+   * Generate CBE Birr payment link/USSD code & app activation details
    * @param {String} phone - Phone number to pay
    * @param {Number} amount - Amount to pay
    * @param {String} reference - Transaction reference
    * @returns {Object} - Payment details
    */
   static generateCBEPayment(phone, amount, reference) {
-    // Format Ethiopian phone number
     const formattedPhone = phone.startsWith('0') ? phone.slice(1) : phone;
-    
-    // Generate USSD code for CBE Birr
-    const ussdCode = `*847#*${formattedPhone}*${Math.round(amount)}#`;
-    
-    // In production, this would generate an actual payment link
-    const paymentLink = `cbebirr://pay?phone=${formattedPhone}&amount=${amount}&ref=${reference}`;
-    
+    const baseUssd = process.env.CBE_USSD_CODE || '*847#';
+    const cleanPrefix = baseUssd.replace(/#/g, '');
+    const ussdCode = `${cleanPrefix}*${formattedPhone}*${Math.round(amount)}#`;
+
     return {
       method: 'CBE Birr',
+      appName: 'CBE Mobile Banking',
+      appPackage: 'com.combanketh.mobilebanking',
+      appScheme: 'cbe://',
+      appPlayStoreUrl: 'https://play.google.com/store/apps/details?id=com.combanketh.mobilebanking',
       ussdCode,
-      paymentLink,
-      instructions: `Dial ${ussdCode} on your CBE Birr registered number to pay ${amount} ETB`
+      baseUssd,
+      paymentLink: `cbebirr://pay?phone=${formattedPhone}&amount=${amount}&ref=${reference}`,
+      instructions: `Open CBE Mobile Banking or dial ${ussdCode} to pay ${amount} ETB`
     };
   }
-  
+
   /**
-   * Generate Amole payment link
+   * Generate Amole payment link & USSD code
    * @param {String} phone - Phone number to pay
    * @param {Number} amount - Amount to pay
    * @param {String} reference - Transaction reference
@@ -61,15 +63,22 @@ class PaymentLinkGenerator {
    */
   static generateAmolePayment(phone, amount, reference) {
     const formattedPhone = phone.startsWith('0') ? phone.slice(1) : phone;
-    const ussdCode = `*850#*${formattedPhone}*${Math.round(amount)}#`;
-    
+    const baseUssd = process.env.AMOLE_USSD_CODE || '*850#';
+    const cleanPrefix = baseUssd.replace(/#/g, '');
+    const ussdCode = `${cleanPrefix}*${formattedPhone}*${Math.round(amount)}#`;
+
     return {
       method: 'Amole',
+      appName: 'Amole',
+      appPackage: 'com.dashen.amole',
+      appScheme: 'amole://',
+      appPlayStoreUrl: 'https://play.google.com/store/apps/details?id=com.dashen.amole',
       ussdCode,
-      instructions: `Dial ${ussdCode} on your Amole registered number to pay ${amount} ETB`
+      baseUssd,
+      instructions: `Open Amole app or dial ${ussdCode} to pay ${amount} ETB`
     };
   }
-  
+
   /**
    * Generate payment options for a debt
    * @param {String} phone - Receiver's phone number
@@ -78,20 +87,13 @@ class PaymentLinkGenerator {
    * @returns {Array} - List of payment options
    */
   static generatePaymentOptions(phone, amount, reference) {
-    const options = [];
-    
-    // Add TeleBirr option
-    options.push(this.generateTeleBirrPayment(phone, amount, reference));
-    
-    // Add CBE Birr option
-    options.push(this.generateCBEPayment(phone, amount, reference));
-    
-    // Add Amole option
-    options.push(this.generateAmolePayment(phone, amount, reference));
-    
-    return options;
+    return [
+      this.generateTeleBirrPayment(phone, amount, reference),
+      this.generateCBEPayment(phone, amount, reference),
+      this.generateAmolePayment(phone, amount, reference)
+    ];
   }
-  
+
   /**
    * Generate a unique transaction reference
    * @returns {String} - Unique reference
@@ -100,25 +102,6 @@ class PaymentLinkGenerator {
     const timestamp = Date.now().toString(36);
     const random = crypto.randomBytes(4).toString('hex');
     return `TXN_${timestamp}_${random}`.toUpperCase();
-  }
-  
-  /**
-   * Validate payment webhook (for production)
-   * @param {Object} payload - Webhook payload
-   * @param {String} signature - Webhook signature
-   * @param {String} secret - Webhook secret
-   * @returns {Boolean} - Valid or not
-   */
-  static validateWebhook(payload, signature, secret) {
-    const expectedSignature = crypto
-      .createHmac('sha256', secret)
-      .update(JSON.stringify(payload))
-      .digest('hex');
-    
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    );
   }
 }
 

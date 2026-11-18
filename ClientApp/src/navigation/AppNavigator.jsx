@@ -5,12 +5,12 @@ import { useTheme } from '../contexts/ThemeContext';
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import SplashScreen from '../screens/SplashScreen';
-    
+
 const Stack = createStackNavigator();
 
 const AppNavigator = () => {
   const { isAuthenticated, loading } = useAuth();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
 
   if (loading) {
     return <SplashScreen />;
@@ -20,7 +20,9 @@ const AppNavigator = () => {
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: theme?.colors?.background },
+        contentStyle: {
+          backgroundColor: theme?.colors?.background || (isDark ? '#121212' : '#f5f5f5'),
+        },
       }}
     >
       {isAuthenticated ? (

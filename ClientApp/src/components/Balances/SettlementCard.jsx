@@ -7,11 +7,12 @@ import {
 } from 'react-native';
 import { Card, Avatar, useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import moment from 'moment';
 import i18n from '../../translations';
+import { useAppDate } from '../../utils/dateUtils';
 
 const SettlementCard = ({ settlement, onPress }) => {
   const theme = useTheme();
+  const { formatDate } = useAppDate();
 
   const getMethodIcon = (method) => {
     switch (method) {
@@ -101,7 +102,7 @@ const SettlementCard = ({ settlement, onPress }) => {
             )}
 
             <Text style={styles.date}>
-              {moment(settlement.date).format('MMM DD, YYYY')}
+              {formatDate(settlement.date)}
             </Text>
           </View>
 

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View,    
+  View,
   Text,
   ScrollView,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
   Share,
   Linking,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import {
   Card,
@@ -18,21 +19,21 @@ import {
   Divider,
   Chip,
   IconButton,
-  Menu,
-  Portal,
-  Dialog,
 } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import moment from 'moment';
+import { useFocusEffect } from '@react-navigation/native';
 import i18n from '../translations';
 import { expenseService } from '../services/expenseService';
 import { settlementService } from '../services/settlementService';
 import { useAuth } from '../contexts/AuthContext';
+import { activatePaymentMethod, dialUssd } from '../utils/paymentLauncher';
+import { useAppDate } from '../utils/dateUtils';
 
 const ExpenseDetailScreen = ({ route, navigation }) => {
-  const { expenseId, expense: initialExpense } = route.params;
+  const { expenseId, expense: initialExpense } = route?.params || {};
   const theme = useTheme();
   const { user } = useAuth();
+  const { formatDate, formatDateTime, formatRelative } = useAppDate();
   const [expense, setExpense] = useState(initialExpense || null);
   const [loading, setLoading] = useState(!initialExpense);
   const [settling, setSettling] = useState(false);
@@ -42,23 +43,33 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
   const [selectedSplit, setSelectedSplit] = useState(null);
   const [paymentOptions, setPaymentOptions] = useState(null);
 
-  useEffect(() => {
-    if (!initialExpense) {
-      loadExpense();
-    }
-  }, []);
+  const targetId = expenseId || initialExpense?._id;
 
-  const loadExpense = async () => {
+  const loadExpense = async (id = targetId) => {
+    if (!id) return;
     try {
-      const response = await expenseService.getExpenseById(expenseId);
-      setExpense(response.data);
+      const response = await expenseService.getExpenseById(id);
+      if (response.data) {
+        setExpense(response.data);
+      }
     } catch (error) {
-      Alert.alert(i18n.t('error'), error.response?.data?.message || i18n.t('something_wrong'));
-      navigation.goBack();
+      console.warn('Load expense error:', error);
+      if (!expense) {
+        Alert.alert(i18n.t('error'), error.response?.data?.message || i18n.t('something_wrong'));
+        navigation.goBack();
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (targetId) {
+        loadExpense(targetId);
+      }
+    }, [targetId])
+  );
 
   const handleSettleShare = async (split) => {
     setSelectedSplit(split);
@@ -71,7 +82,7 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
     }
   };
 
-  const handlePaymentMethod = async (method) => {
+  const recordSettlement = async (method) => {
     try {
       setSettling(true);
       const settlementData = {
@@ -96,13 +107,18 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
     }
   };
 
+  const handlePaymentMethod = async (method) => {
+    // Open Telebirr or CBE Mobile Banking app or fallback to USSD
+    await activatePaymentMethod(method, () => recordSettlement(method));
+  };
+
   const handleShare = async () => {
     try {
       const userShare = getUserShare();
       const message = `${expense.description}: ${expense.amount} ETB\n` +
         `${i18n.t('paid_by')}: ${expense.paidBy.name}\n` +
         `${i18n.t('your_share')}: ${userShare.toFixed(2)} ETB\n` +
-        `${i18n.t('date')}: ${moment(expense.date).format('MMMM DD, YYYY')}\n\n` +
+        `${i18n.t('date')}: ${formatDate(expense.date)}\n\n` +
         `${i18n.t('shared_via')} Ethio Debt Tracker`;
       
       await Share.share({
@@ -125,18 +141,30 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
   };
 
   const handleEdit = () => {
-    navigation.navigate('EditExpense', { expenseId: expense._id, expense });
+    navigation.navigate('EditExpense', {
+      expenseId: expense?._id || expense?.id,
+      expense,
+      groupId:
+        expense?.groupId?._id ||
+        expense?.groupId?.id ||
+        expense?.groupId ||
+        expense?.group_id,
+    });
   };
 
   const getUserShare = () => {
-    const userSplit = expense?.splits?.find(
-      split => split.userId._id === user._id
-    );
-    return userSplit?.share || 0;
+    const currentUserId = user?._id || user?.id;
+    const userSplit = expense?.splits?.find((split) => {
+      const splitUid = split.userId?._id || split.userId?.id || split.userId;
+      return String(splitUid) === String(currentUserId);
+    });
+    return userSplit?.share || userSplit?.amount || 0;
   };
 
   const isCurrentUserPayer = () => {
-    return expense?.paidBy._id === user._id;
+    const currentUserId = user?._id || user?.id;
+    const payerId = expense?.paidBy?._id || expense?.paidBy?.id || expense?.paidBy;
+    return Boolean(currentUserId && payerId && String(payerId) === String(currentUserId));
   };
 
   const getCategoryIcon = (category) => {
@@ -194,17 +222,17 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
   const isSettled = userShare === 0;
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header Card */}
-      <Card style={styles.headerCard}>
+      <Card style={[styles.headerCard, { backgroundColor: theme.colors.surface }]}>
         <Card.Content>
           <View style={styles.headerContent}>
             <View style={[styles.categoryIconContainer, { backgroundColor: getCategoryColor(expense.category) + '15' }]}>
               <Icon name={getCategoryIcon(expense.category)} size={40} color={getCategoryColor(expense.category)} />
             </View>
-            <Text style={styles.description}>{expense.description}</Text>
+            <Text style={[styles.description, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{expense.description}</Text>
             <Text style={styles.amount}>{expense.amount.toLocaleString()} ETB</Text>
-            <Chip icon={getCategoryIcon(expense.category)} style={styles.categoryChip}>
+            <Chip icon={getCategoryIcon(expense.category)} style={[styles.categoryChip, { backgroundColor: theme.dark ? '#2A2A2A' : '#f0f0f0' }]}>
               {i18n.t(expense.category.toLowerCase().replace(/ & /g, '_').replace(/ /g, '_'))}
             </Chip>
           </View>
@@ -212,18 +240,32 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
       </Card>
 
       {/* Payer Info */}
-      <Card style={styles.infoCard}>
+      <Card style={[styles.infoCard, { backgroundColor: theme.colors.surface }]}>
         <Card.Content>
-          <Text style={styles.sectionTitle}>{i18n.t('paid_by')}</Text>
+          <Text style={[styles.sectionTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{i18n.t('paid_by')}</Text>
           <View style={styles.payerInfo}>
-            <Avatar.Text
-              size={56}
-              label={expense.paidBy.name?.charAt(0) || '?'}
-              style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
-            />
+            {expense.paidBy?._id === user?._id && user?.avatar ? (
+              <Avatar.Image
+                size={56}
+                source={{ uri: user.avatar }}
+                style={styles.avatar}
+              />
+            ) : expense.paidBy?.avatar ? (
+              <Avatar.Image
+                size={56}
+                source={{ uri: expense.paidBy.avatar }}
+                style={styles.avatar}
+              />
+            ) : (
+              <Avatar.Text
+                size={56}
+                label={expense.paidBy?.name?.charAt(0) || '?'}
+                style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
+              />
+            )}
             <View style={styles.payerDetails}>
-              <Text style={styles.payerName}>{expense.paidBy.name}</Text>
-              <Text style={styles.payerAmount}>
+              <Text style={[styles.payerName, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{expense.paidBy.name}</Text>
+              <Text style={[styles.payerAmount, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>
                 {i18n.t('paid_total')}: {expense.amount.toLocaleString()} ETB
               </Text>
               {expense.paidBy.phone && (
@@ -241,9 +283,9 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
       </Card>
 
       {/* Split Details */}
-      <Card style={styles.infoCard}>
+      <Card style={[styles.infoCard, { backgroundColor: theme.colors.surface }]}>
         <Card.Content>
-          <Text style={styles.sectionTitle}>{i18n.t('split_details')}</Text>
+          <Text style={[styles.sectionTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{i18n.t('split_details')}</Text>
           {expense.splits.map((split, index) => {
             const isUser = split.userId._id === user._id;
             const isPaid = split.isPaid;
@@ -252,11 +294,25 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
             return (
               <View key={index} style={styles.splitItem}>
                 <View style={styles.splitUserInfo}>
-                  <Avatar.Text
-                    size={44}
-                    label={split.userId.name?.charAt(0) || '?'}
-                    style={[styles.splitAvatar, { backgroundColor: isUser ? theme.colors.primary : '#9E9E9E' }]}
-                  />
+                  {isUser && user?.avatar ? (
+                    <Avatar.Image
+                      size={44}
+                      source={{ uri: user.avatar }}
+                      style={styles.splitAvatar}
+                    />
+                  ) : split.userId?.avatar ? (
+                    <Avatar.Image
+                      size={44}
+                      source={{ uri: split.userId.avatar }}
+                      style={styles.splitAvatar}
+                    />
+                  ) : (
+                    <Avatar.Text
+                      size={44}
+                      label={split.userId?.name?.charAt(0) || '?'}
+                      style={[styles.splitAvatar, { backgroundColor: isUser ? theme.colors.primary : '#9E9E9E' }]}
+                    />
+                  )}
                   <View style={styles.splitDetails}>
                     <Text style={styles.splitUserName}>
                       {split.userId.name}
@@ -301,7 +357,7 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
           <View style={styles.infoRow}>
             <Icon name="calendar" size={20} color="#666" />
             <Text style={styles.infoText}>
-              {moment(expense.date).format('MMMM DD, YYYY [at] h:mm A')}
+              {formatDateTime(expense.date)}
             </Text>
           </View>
           
@@ -315,7 +371,7 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
           <View style={styles.infoRow}>
             <Icon name="clock-outline" size={20} color="#666" />
             <Text style={styles.infoText}>
-              {i18n.t('added_by')} {expense.createdBy?.name || expense.paidBy.name} • {moment(expense.createdAt).fromNow()}
+              {i18n.t('added_by')} {expense.createdBy?.name || expense.paidBy.name} • {formatRelative(expense.createdAt)}
             </Text>
           </View>
         </Card.Content>
@@ -332,7 +388,7 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
           {i18n.t('share')}
         </Button>
         
-        {(isPayer || expense.createdBy?._id === user._id) && (
+        {(isPayer || String(expense?.createdBy?._id || expense?.createdBy?.id || expense?.createdBy || '') === String(user?._id || user?.id || '') || !expense?.createdBy) && (
           <Button
             mode="outlined"
             onPress={handleEdit}
@@ -343,7 +399,7 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
           </Button>
         )}
         
-        {(isPayer || expense.createdBy?._id === user._id) && (
+        {(isPayer || String(expense?.createdBy?._id || expense?.createdBy?.id || expense?.createdBy || '') === String(user?._id || user?.id || '') || !expense?.createdBy) && (
           <Button
             mode="outlined"
             onPress={() => setDeleteDialogVisible(true)}
@@ -357,29 +413,39 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
       </View>
 
       {/* Delete Dialog */}
-      <Portal>
-        <Dialog visible={deleteDialogVisible} onDismiss={() => setDeleteDialogVisible(false)}>
-          <Dialog.Title>{i18n.t('delete_expense')}</Dialog.Title>
-          <Dialog.Content>
-            <Text>{i18n.t('confirm_delete_expense')}</Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setDeleteDialogVisible(false)}>{i18n.t('cancel')}</Button>
-            <Button onPress={handleDelete} textColor="#F44336">{i18n.t('delete')}</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <Modal
+        visible={deleteDialogVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDeleteDialogVisible(false)}
+      >
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogContainer}>
+            <Text style={styles.dialogTitle}>{i18n.t('delete_expense')}</Text>
+            <Text style={styles.dialogMessage}>{i18n.t('confirm_delete_expense')}</Text>
+            <View style={styles.dialogActions}>
+              <Button onPress={() => setDeleteDialogVisible(false)}>{i18n.t('cancel')}</Button>
+              <Button onPress={handleDelete} textColor="#F44336">{i18n.t('delete')}</Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Settlement Dialog */}
-      <Portal>
-        <Dialog visible={settleDialogVisible} onDismiss={() => setSettleDialogVisible(false)}>
-          <Dialog.Title>{i18n.t('settle_up')}</Dialog.Title>
-          <Dialog.Content>
+      <Modal
+        visible={settleDialogVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSettleDialogVisible(false)}
+      >
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogContainer}>
+            <Text style={styles.dialogTitle}>{i18n.t('settle_up')}</Text>
             <Text style={styles.settleAmount}>
-              {i18n.t('amount')}: {selectedSplit?.share.toLocaleString()} ETB
+              {i18n.t('amount')}: {selectedSplit?.share?.toLocaleString()} ETB
             </Text>
             <Text style={styles.settleTo}>
-              {i18n.t('pay_to')}: {expense?.paidBy.name}
+              {i18n.t('pay_to')}: {expense?.paidBy?.name}
             </Text>
             <Divider style={styles.divider} />
             <Text style={styles.paymentMethodsTitle}>{i18n.t('select_payment_method')}</Text>
@@ -393,7 +459,9 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
                 <View style={styles.paymentOptionInfo}>
                   <Text style={styles.paymentOptionName}>{option.method}</Text>
                   {option.ussdCode && (
-                    <Text style={styles.paymentOptionCode}>{option.ussdCode}</Text>
+                    <TouchableOpacity onPress={() => dialUssd(option.ussdCode)}>
+                      <Text style={styles.paymentOptionCode}>📞 {option.ussdCode} (Tap to dial)</Text>
+                    </TouchableOpacity>
                   )}
                   {option.instructions && (
                     <Text style={styles.paymentOptionInstructions}>{option.instructions}</Text>
@@ -402,12 +470,12 @@ const ExpenseDetailScreen = ({ route, navigation }) => {
                 <Icon name="chevron-right" size={20} color="#999" />
               </TouchableOpacity>
             ))}
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setSettleDialogVisible(false)}>{i18n.t('cancel')}</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+            <View style={styles.dialogActions}>
+              <Button onPress={() => setSettleDialogVisible(false)}>{i18n.t('cancel')}</Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -628,6 +696,38 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#999',
     marginTop: 2,
+  },
+  dialogOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  dialogContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 420,
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  dialogMessage: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  dialogActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 16,
   },
 });
 

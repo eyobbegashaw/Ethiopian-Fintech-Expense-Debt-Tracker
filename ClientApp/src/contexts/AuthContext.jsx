@@ -1,7 +1,8 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../services/api';
-    
+import { authService } from '../services/authService';
+import { initLocalDatabase } from '../database/db';
+
 const AuthContext = createContext({});
 
 export const useAuth = () => useContext(AuthContext);
@@ -17,16 +18,39 @@ export const AuthProvider = ({ children }) => {
 
   const loadStoredData = async () => {
     try {
+      // 1. Initialize local SQLite database
+      await initLocalDatabase();
+
+      // 2. Load stored session
       const storedToken = await AsyncStorage.getItem('token');
-      const storedUser = await AsyncStorage.getItem('user');
-      
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-        api.defaults.headers.Authorization = `Bearer ${storedToken}`;
+      const storedUserStr = await AsyncStorage.getItem('user');
+
+      if (storedToken && storedUserStr) {
+        try {
+          const res = await authService.getMe();
+          if (res?.data) {
+            setToken(storedToken);
+            setUser(res.data);
+            await AsyncStorage.setItem('user', JSON.stringify(res.data));
+          } else {
+            const fallbackUser = JSON.parse(storedUserStr);
+            setToken(storedToken);
+            setUser(fallbackUser);
+          }
+        } catch (e) {
+          console.log('Local session refresh notice:', e?.message);
+          const fallbackUser = JSON.parse(storedUserStr);
+          setToken(storedToken);
+          setUser(fallbackUser);
+        }
+      } else {
+        setToken(null);
+        setUser(null);
       }
     } catch (error) {
-      console.error('Error loading stored data:', error);
+      console.error('Error loading local auth data:', error);
+      setToken(null);
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -34,42 +58,41 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (phone, password) => {
     try {
-      const response = await api.post('/auth/login', { phone, password });
-      const { token, user } = response.data;
-      
-      await AsyncStorage.setItem('token', token);
-      await AsyncStorage.setItem('user', JSON.stringify(user));
-      
-      api.defaults.headers.Authorization = `Bearer ${token}`;
-      setToken(token);
-      setUser(user);
-      
+      const response = await authService.login(phone, password);
+      const { token: localToken, user: loggedInUser } = response;
+
+      await AsyncStorage.setItem('token', localToken);
+      await AsyncStorage.setItem('user', JSON.stringify(loggedInUser));
+
+      setToken(localToken);
+      setUser(loggedInUser);
+
       return { success: true };
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.message || 'Login failed'
+        message: error.message || 'Login failed',
       };
     }
   };
 
-  const register = async (userData) => {
+  const register = async (userData, autoLogin = false) => {
     try {
-      const response = await api.post('/auth/register', userData);
-      const { token, user } = response.data;
-      
-      await AsyncStorage.setItem('token', token);
-      await AsyncStorage.setItem('user', JSON.stringify(user));
-      
-      api.defaults.headers.Authorization = `Bearer ${token}`;
-      setToken(token);
-      setUser(user);
-      
-      return { success: true };
+      const response = await authService.register(userData);
+      const { token: localToken, user: newUser, recoveryCode } = response;
+
+      if (autoLogin) {
+        await AsyncStorage.setItem('token', localToken);
+        await AsyncStorage.setItem('user', JSON.stringify(newUser));
+        setToken(localToken);
+        setUser(newUser);
+      }
+
+      return { success: true, recoveryCode, user: newUser, token: localToken };
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.message || 'Registration failed'
+        message: error.message || 'Registration failed',
       };
     }
   };
@@ -77,9 +100,23 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('user');
-    delete api.defaults.headers.Authorization;
     setToken(null);
     setUser(null);
+  };
+
+  const updateUser = async (updatedData) => {
+    try {
+      const response = await authService.updateProfile(updatedData);
+      const updated = response?.data || { ...user, ...updatedData };
+      await AsyncStorage.setItem('user', JSON.stringify(updated));
+      setUser(updated);
+      return { success: true, user: updated };
+    } catch {
+      const fallbackUser = { ...user, ...updatedData };
+      await AsyncStorage.setItem('user', JSON.stringify(fallbackUser));
+      setUser(fallbackUser);
+      return { success: true, user: fallbackUser };
+    }
   };
 
   const value = {
@@ -89,7 +126,9 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
-    isAuthenticated: !!user
+    updateUser,
+    isAuthenticated: !!user,
+    isLocalOnly: true,
   };
 
   return (
@@ -98,3 +137,5 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+export default AuthContext;

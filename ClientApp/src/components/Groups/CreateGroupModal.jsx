@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,     
+  Text,
   Modal,
   StyleSheet,
   ScrollView,
@@ -18,11 +18,13 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import i18n from '../../translations';
 import { groupService } from '../../services/groupService';
+import { friendService } from '../../services/friendService';
 import FriendSelector from '../Common/FriendSelector';
 
 const CreateGroupModal = ({ visible, onClose, onSuccess, userId }) => {
   const theme = useTheme();
   const [loading, setLoading] = useState(false);
+  const [friendsList, setFriendsList] = useState([]);
   const [step, setStep] = useState(1);
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
@@ -30,6 +32,21 @@ const CreateGroupModal = ({ visible, onClose, onSuccess, userId }) => {
   const [icon, setIcon] = useState('👥');
   const [simplifyDebts, setSimplifyDebts] = useState(true);
   const [selectedMembers, setSelectedMembers] = useState([]);
+
+  useEffect(() => {
+    if (visible) {
+      loadFriends();
+    }
+  }, [visible]);
+
+  const loadFriends = async () => {
+    try {
+      const res = await friendService.getFriends();
+      setFriendsList(res.data || []);
+    } catch (e) {
+      console.log('Error loading friends for group modal:', e);
+    }
+  };
 
   const groupCategories = [
     { value: 'Household', label: i18n.t('household'), icon: 'home' },
@@ -93,7 +110,10 @@ const CreateGroupModal = ({ visible, onClose, onSuccess, userId }) => {
         value={groupName}
         onChangeText={setGroupName}
         mode="outlined"
-        style={styles.input}
+        style={[styles.input, { backgroundColor: theme.colors.surface }]}
+        textColor={theme.dark ? '#FFFFFF' : '#333333'}
+        outlineColor={theme.dark ? '#666666' : '#CCCCCC'}
+        activeOutlineColor={theme.colors.primary}
       />
       
       <TextInput
@@ -103,7 +123,10 @@ const CreateGroupModal = ({ visible, onClose, onSuccess, userId }) => {
         mode="outlined"
         multiline
         numberOfLines={3}
-        style={styles.input}
+        style={[styles.input, { backgroundColor: theme.colors.surface }]}
+        textColor={theme.dark ? '#FFFFFF' : '#333333'}
+        outlineColor={theme.dark ? '#666666' : '#CCCCCC'}
+        activeOutlineColor={theme.colors.primary}
       />
 
       <Text style={styles.sectionLabel}>{i18n.t('group_category')}</Text>
@@ -169,7 +192,7 @@ const CreateGroupModal = ({ visible, onClose, onSuccess, userId }) => {
       </Text>
       
       <FriendSelector
-        friends={[]} // Would come from friends API
+        friends={friendsList}
         selectedFriends={selectedMembers}
         onSelect={setSelectedMembers}
         multiSelect={true}
@@ -185,11 +208,11 @@ const CreateGroupModal = ({ visible, onClose, onSuccess, userId }) => {
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{i18n.t('create_group')}</Text>
+            <Text style={[styles.modalTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{i18n.t('create_group')}</Text>
             <TouchableOpacity onPress={onClose}>
-              <Icon name="close" size={24} color="#666" />
+              <Icon name="close" size={24} color={theme.dark ? '#aaa' : '#666'} />
             </TouchableOpacity>
           </View>
 
@@ -232,7 +255,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderRadius: 20,
     width: '90%',
     maxHeight: '80%',
@@ -262,7 +284,6 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 16,
-    backgroundColor: '#fff',
   },
   sectionLabel: {
     fontSize: 14,

@@ -98,20 +98,36 @@ const SplitOptions = ({ members, totalAmount, onSplitChange, initialSplitType = 
 
     if (splitType === 'percentage') {
       return members.map(member => (
-        <View key={member._id} style={styles.splitInputRow}>
+        <View
+          key={member._id}
+          style={[
+            styles.splitInputRow,
+            { borderBottomColor: theme.dark ? '#333333' : '#f0f0f0' }
+          ]}
+        >
           <View style={styles.memberInfo}>
-            <Avatar name={member.name} size={40} />
-            <Text style={styles.memberName}>{member.name}</Text>
+            <Avatar name={member.name} size={40} imageUrl={member.avatar || member.userId?.avatar} />
+            <Text style={[styles.memberName, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
+              {member.name}
+            </Text>
           </View>
           <View style={styles.percentageInput}>
             <TextInput
-              style={styles.percentageField}
+              style={[
+                styles.percentageField,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.dark ? '#3C3C3C' : '#ddd',
+                  color: theme.dark ? '#FFFFFF' : '#333333',
+                }
+              ]}
               value={percentages[member._id]?.toString() || '0'}
               onChangeText={(value) => updatePercentage(member._id, value)}
               keyboardType="decimal-pad"
               placeholder="0"
+              placeholderTextColor={theme.dark ? '#888888' : '#999999'}
             />
-            <Text style={styles.percentageSymbol}>%</Text>
+            <Text style={[styles.percentageSymbol, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>%</Text>
           </View>
           <Text style={styles.percentageAmount}>
             {(percentages[member._id] / 100 * totalAmount).toFixed(2)} ETB
@@ -122,10 +138,18 @@ const SplitOptions = ({ members, totalAmount, onSplitChange, initialSplitType = 
 
     // Custom split
     return members.map(member => (
-      <View key={member._id} style={styles.splitInputRow}>
+      <View
+        key={member._id}
+        style={[
+          styles.splitInputRow,
+          { borderBottomColor: theme.dark ? '#333333' : '#f0f0f0' }
+        ]}
+      >
         <View style={styles.memberInfo}>
-          <Avatar name={member.name} size={40} />
-          <Text style={styles.memberName}>{member.name}</Text>
+          <Avatar name={member.name} size={40} imageUrl={member.avatar || member.userId?.avatar} />
+          <Text style={[styles.memberName, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
+            {member.name}
+          </Text>
         </View>
         <CurrencyInput
           value={customSplits[member._id]?.toString() || '0'}
@@ -137,25 +161,29 @@ const SplitOptions = ({ members, totalAmount, onSplitChange, initialSplitType = 
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{i18n.t('split_method')}</Text>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
+      <Text style={[styles.title, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
+        {i18n.t('split_method')}
+      </Text>
       
       <View style={styles.optionsContainer}>
         <TouchableOpacity
           style={[
             styles.optionCard,
-            splitType === 'equal' && styles.optionCardActive,
+            { backgroundColor: theme.dark ? '#262626' : '#f5f5f5' },
+            splitType === 'equal' && (theme.dark ? { backgroundColor: '#1b381e', borderColor: '#2E7D32', borderWidth: 1 } : styles.optionCardActive),
           ]}
           onPress={() => handleSplitTypeChange('equal')}
         >
           <Icon
             name="account-multiple"
             size={24}
-            color={splitType === 'equal' ? '#2E7D32' : '#666'}
+            color={splitType === 'equal' ? '#2E7D32' : (theme.dark ? '#AAA' : '#666')}
           />
           <Text
             style={[
               styles.optionText,
+              { color: theme.dark ? '#AAA' : '#666' },
               splitType === 'equal' && styles.optionTextActive,
             ]}
           >
@@ -166,18 +194,20 @@ const SplitOptions = ({ members, totalAmount, onSplitChange, initialSplitType = 
         <TouchableOpacity
           style={[
             styles.optionCard,
-            splitType === 'percentage' && styles.optionCardActive,
+            { backgroundColor: theme.dark ? '#262626' : '#f5f5f5' },
+            splitType === 'percentage' && (theme.dark ? { backgroundColor: '#1b381e', borderColor: '#2E7D32', borderWidth: 1 } : styles.optionCardActive),
           ]}
           onPress={() => handleSplitTypeChange('percentage')}
         >
           <Icon
             name="percent"
             size={24}
-            color={splitType === 'percentage' ? '#2E7D32' : '#666'}
+            color={splitType === 'percentage' ? '#2E7D32' : (theme.dark ? '#AAA' : '#666')}
           />
           <Text
             style={[
               styles.optionText,
+              { color: theme.dark ? '#AAA' : '#666' },
               splitType === 'percentage' && styles.optionTextActive,
             ]}
           >
@@ -188,18 +218,20 @@ const SplitOptions = ({ members, totalAmount, onSplitChange, initialSplitType = 
         <TouchableOpacity
           style={[
             styles.optionCard,
-            splitType === 'custom' && styles.optionCardActive,
+            { backgroundColor: theme.dark ? '#262626' : '#f5f5f5' },
+            splitType === 'custom' && (theme.dark ? { backgroundColor: '#1b381e', borderColor: '#2E7D32', borderWidth: 1 } : styles.optionCardActive),
           ]}
           onPress={() => handleSplitTypeChange('custom')}
         >
           <Icon
             name="pencil"
             size={24}
-            color={splitType === 'custom' ? '#2E7D32' : '#666'}
+            color={splitType === 'custom' ? '#2E7D32' : (theme.dark ? '#AAA' : '#666')}
           />
           <Text
             style={[
               styles.optionText,
+              { color: theme.dark ? '#AAA' : '#666' },
               splitType === 'custom' && styles.optionTextActive,
             ]}
           >
@@ -212,8 +244,10 @@ const SplitOptions = ({ members, totalAmount, onSplitChange, initialSplitType = 
         {renderSplitInputs()}
       </View>
 
-      <View style={styles.totalContainer}>
-        <Text style={styles.totalLabel}>{i18n.t('total')}:</Text>
+      <View style={[styles.totalContainer, { borderTopColor: theme.dark ? '#3C3C3C' : '#e0e0e0' }]}>
+        <Text style={[styles.totalLabel, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
+          {i18n.t('total')}:
+        </Text>
         <Text style={styles.totalAmount}>{totalAmount.toFixed(2)} ETB</Text>
       </View>
     </View>
@@ -222,7 +256,6 @@ const SplitOptions = ({ members, totalAmount, onSplitChange, initialSplitType = 
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
   },

@@ -12,6 +12,7 @@ import { Card, Button, useTheme, ActivityIndicator } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import i18n from '../../translations';
 import { settlementService } from '../../services/settlementService';
+import { activatePaymentMethod, dialUssd } from '../../utils/paymentLauncher';
 
 const SimplifyDebtsModal = ({ visible, onClose, debts, groupId, onSuccess }) => {
   const theme = useTheme();
@@ -34,7 +35,7 @@ const SimplifyDebtsModal = ({ visible, onClose, debts, groupId, onSuccess }) => 
     }
   };
 
-  const handlePaymentMethod = async (method) => {
+  const recordSettlement = async (method) => {
     try {
       setLoading(true);
       const settlementData = {
@@ -59,6 +60,11 @@ const SimplifyDebtsModal = ({ visible, onClose, debts, groupId, onSuccess }) => 
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePaymentMethod = async (method) => {
+    // Open Telebirr or CBE Mobile Banking app or fallback to USSD
+    await activatePaymentMethod(method, () => recordSettlement(method));
   };
 
   const renderDebt = ({ item }) => (
@@ -111,7 +117,9 @@ const SimplifyDebtsModal = ({ visible, onClose, debts, groupId, onSuccess }) => 
           <View style={styles.paymentOptionInfo}>
             <Text style={styles.paymentOptionName}>{option.method}</Text>
             {option.ussdCode && (
-              <Text style={styles.paymentOptionCode}>{option.ussdCode}</Text>
+              <TouchableOpacity onPress={() => dialUssd(option.ussdCode)}>
+                <Text style={styles.paymentOptionCode}>📞 {option.ussdCode} (Tap to dial)</Text>
+              </TouchableOpacity>
             )}
             {option.instructions && (
               <Text style={styles.paymentOptionInstructions}>
@@ -151,13 +159,13 @@ const SimplifyDebtsModal = ({ visible, onClose, debts, groupId, onSuccess }) => 
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
+            <Text style={[styles.modalTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
               {showPaymentOptions ? i18n.t('payment_method') : i18n.t('simplify_debts')}
             </Text>
             <TouchableOpacity onPress={onClose}>
-              <Icon name="close" size={24} color="#666" />
+              <Icon name="close" size={24} color={theme.dark ? '#aaa' : '#666'} />
             </TouchableOpacity>
           </View>
 
@@ -205,7 +213,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,

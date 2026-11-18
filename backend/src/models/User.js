@@ -1,12 +1,15 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { normalizeEthiopianPhone, isValidEthiopianPhone } = require('../utils/phoneUtils');
 
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Name is required'],
     trim: true,
-    minlength: [2, 'Name must be at least 2 characters'],
+    default: function() {
+      const p = this.phone || '';
+      return p.length >= 4 ? `User ${p.slice(-4)}` : 'User';
+    },
     maxlength: [50, 'Name cannot exceed 50 characters']
   },
   phone: {
@@ -14,14 +17,20 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Phone number is required'],
     unique: true,
     trim: true,
-    match: [/^[0-9]{9,12}$/, 'Please enter a valid Ethiopian phone number']
+    set: normalizeEthiopianPhone,
+    validate: {
+      validator: isValidEthiopianPhone,
+      message: 'Phone number must start with 09 or 07 and have 10 digits (e.g. 0912345678 or 0712345678)'
+    }
   },
   email: {
     type: String,
     trim: true,
     lowercase: true,
     sparse: true,
-    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+    unique: true,
+    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email'],
+    set: v => (v === '' || v === null || v === undefined ? undefined : v)
   },
   password: {
     type: String,
@@ -59,14 +68,28 @@ const userSchema = new mongoose.Schema({
     },
     notifications: {
       email: { type: Boolean, default: true },
-      sms: { type: Boolean, default: true },
+      inApp: { type: Boolean, default: true },
       push: { type: Boolean, default: true }
     },
     theme: {
       type: String,
       default: 'light',
       enum: ['light', 'dark']
+    },
+    calendar: {
+      type: String,
+      default: 'ethiopian',
+      enum: ['ethiopian', 'gregorian']
+    },
+    timeFormat: {
+      type: String,
+      default: '12h',
+      enum: ['12h', '24h']
     }
+  },
+  pushToken: {
+    type: String,
+    default: null
   },
   isActive: {
     type: Boolean,
@@ -78,30 +101,11 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash password before saving
-// userSchema.pre('save', async function(next) {
-//   if (!this.isModified('password')) return next();
-  
-//   try {
-//     const salt = await bcrypt.genSalt(10);
-//     this.password = await bcrypt.hash(this.password, salt);
-//     next();
-//   } catch (error) {
-//     next(error);
-//   }
-// });
-
 userSchema.pre('save', async function() {
-  // 'next'ን ከዚህ በላይ ካለው ፓራሜትር አውጣው
   if (!this.isModified('password')) return;
 
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    // እዚህ ጋር next() መጥራት አያስፈልግም፤ ፋንክሽኑ ሲያልቅ በራሱ ይቀጥላል
-  } catch (error) {
-    // ስህተት ካለ በቀጥታ throw አድርገው፣ Mongoose ይይዘዋል
-    throw error;
-  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 // Compare password method

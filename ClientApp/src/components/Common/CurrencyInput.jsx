@@ -52,14 +52,15 @@ const CurrencyInput = ({ value, onChange, placeholder, currency = 'ETB' }) => {
         style={[
           styles.inputContainer,
           {
-            borderColor: isFocused ? theme.colors.primary : '#ddd',
+            backgroundColor: theme.colors.surface,
+            borderColor: isFocused ? theme.colors.primary : (theme.dark ? '#3C3C3C' : '#ddd'),
             borderWidth: isFocused ? 2 : 1,
           },
         ]}
       >
-        <Text style={styles.currencySymbol}>{currency}</Text>
+        <Text style={[styles.currencySymbol, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{currency}</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: theme.dark ? '#FFFFFF' : '#333333' }]}
           value={displayValue}
           onChangeText={handleChangeText}
           placeholder={placeholder || '0.00'}
@@ -74,10 +75,10 @@ const CurrencyInput = ({ value, onChange, placeholder, currency = 'ETB' }) => {
         {[100, 500, 1000, 5000].map((amount) => (
           <TouchableOpacity
             key={amount}
-            style={styles.quickAmountButton}
+            style={[styles.quickAmountButton, { backgroundColor: theme.dark ? '#262626' : '#f5f5f5' }]}
             onPress={() => onChange(amount.toString())}
           >
-            <Text style={styles.quickAmountText}>{amount}</Text>
+            <Text style={[styles.quickAmountText, { color: theme.dark ? '#FFFFFF' : '#666666' }]}>{amount}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -92,7 +93,6 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 56,

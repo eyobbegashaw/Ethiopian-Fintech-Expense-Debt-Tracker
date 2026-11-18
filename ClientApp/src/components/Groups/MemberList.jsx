@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import {
-  View,     
+  View,
   Text,
   FlatList,
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Modal,
 } from 'react-native';
-import { Avatar, Button, useTheme, Menu, Divider } from 'react-native-paper';
+import { Avatar, Button, useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import i18n from '../../translations';
+import { useAuth } from '../../contexts/AuthContext';
 
 const MemberList = ({ members, balances, currentUserId, isAdmin, onRemoveMember, onMakeAdmin }) => {
   const theme = useTheme();
+  const { user } = useAuth();
   const [menuVisible, setMenuVisible] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
 
@@ -64,16 +67,39 @@ const MemberList = ({ members, balances, currentUserId, isAdmin, onRemoveMember,
     const isMemberAdmin = item.role === 'admin';
 
     return (
-      <View style={styles.memberItem}>
+      <View
+        style={[
+          styles.memberItem,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.dark ? '#3C3C3C' : '#e0e0e0',
+            borderWidth: theme.dark ? 1 : 0,
+          }
+        ]}
+      >
         <View style={styles.memberInfo}>
-          <Avatar.Text
-            size={50}
-            label={item.userId.name.charAt(0)}
-            style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
-          />
+          {isCurrentUser && user?.avatar ? (
+            <Avatar.Image
+              size={50}
+              source={{ uri: user.avatar }}
+              style={styles.avatar}
+            />
+          ) : item.userId?.avatar ? (
+            <Avatar.Image
+              size={50}
+              source={{ uri: item.userId.avatar }}
+              style={styles.avatar}
+            />
+          ) : (
+            <Avatar.Text
+              size={50}
+              label={item.userId.name?.charAt(0) || '?'}
+              style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
+            />
+          )}
           <View style={styles.memberDetails}>
             <View style={styles.nameContainer}>
-              <Text style={styles.memberName}>
+              <Text style={[styles.memberName, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>
                 {item.nickname || item.userId.name}
               </Text>
               {isCurrentUser && (
@@ -86,9 +112,9 @@ const MemberList = ({ members, balances, currentUserId, isAdmin, onRemoveMember,
               )}
             </View>
             {item.nickname && (
-              <Text style={styles.realName}>{item.userId.name}</Text>
+              <Text style={[styles.realName, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{item.userId.name}</Text>
             )}
-            <Text style={styles.memberPhone}>{item.userId.phone}</Text>
+            <Text style={[styles.memberPhone, { color: theme.dark ? '#888888' : '#999999' }]}>{item.userId.phone}</Text>
             <View
               style={[
                 styles.balanceBadge,
@@ -116,40 +142,15 @@ const MemberList = ({ members, balances, currentUserId, isAdmin, onRemoveMember,
         </View>
 
         {isAdmin && !isCurrentUser && (
-          <Menu
-            visible={menuVisible === item.userId._id}
-            onDismiss={() => setMenuVisible(null)}
-            anchor={
-              <TouchableOpacity
-                onPress={() => {
-                  setSelectedMember(item);
-                  setMenuVisible(item.userId._id);
-                }}
-              >
-                <Icon name="dots-vertical" size={24} color="#666" />
-              </TouchableOpacity>
-            }
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedMember(item);
+              setMenuVisible(item.userId._id);
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Menu.Item
-              onPress={() => {
-                setMenuVisible(null);
-                handleMakeAdmin(item);
-              }}
-              title={i18n.t('make_admin')}
-              leadingIcon="crown"
-              disabled={isMemberAdmin}
-            />
-            <Divider />
-            <Menu.Item
-              onPress={() => {
-                setMenuVisible(null);
-                handleRemoveMember(item);
-              }}
-              title={i18n.t('remove_member')}
-              leadingIcon="account-remove"
-              titleStyle={{ color: '#F44336' }}
-            />
-          </Menu>
+            <Icon name="dots-vertical" size={24} color="#666" />
+          </TouchableOpacity>
         )}
       </View>
     );
@@ -164,6 +165,62 @@ const MemberList = ({ members, balances, currentUserId, isAdmin, onRemoveMember,
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Member Action Modal */}
+      <Modal
+        visible={!!menuVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(null)}
+      >
+        <TouchableOpacity
+          style={styles.actionModalOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuVisible(null)}
+        >
+          <View style={[styles.actionModalContainer, { backgroundColor: theme.colors.surface }]}>
+            <TouchableOpacity
+              style={styles.actionOption}
+              disabled={selectedMember?.role === 'admin'}
+              onPress={() => {
+                const member = selectedMember;
+                setMenuVisible(null);
+                if (member) handleMakeAdmin(member);
+              }}
+            >
+              <Icon
+                name="crown"
+                size={22}
+                color={selectedMember?.role === 'admin' ? '#999' : theme.colors.primary}
+              />
+              <Text
+                style={[
+                  styles.actionOptionText,
+                  selectedMember?.role === 'admin' && styles.disabledText,
+                ]}
+              >
+                {i18n.t('make_admin')}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.actionDivider} />
+
+            <TouchableOpacity
+              style={styles.actionOption}
+              onPress={() => {
+                const member = selectedMember;
+                setMenuVisible(null);
+                if (member) handleRemoveMember(member);
+              }}
+            >
+              <Icon name="account-remove" size={22} color="#F44336" />
+              <Text style={[styles.actionOptionText, { color: '#F44336' }]}>
+                {i18n.t('remove_member')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -181,7 +238,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 16,
     padding: 12,
-    backgroundColor: '#fff',
     borderRadius: 12,
     elevation: 1,
   },
@@ -237,6 +293,40 @@ const styles = StyleSheet.create({
   balanceText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  actionModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  actionModalContainer: {
+    borderRadius: 14,
+    paddingVertical: 8,
+    width: '100%',
+    maxWidth: 320,
+    elevation: 5,
+  },
+  actionOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  actionOptionText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#333',
+  },
+  actionDivider: {
+    height: 1,
+    backgroundColor: '#eee',
+    marginHorizontal: 16,
+  },
+  disabledText: {
+    color: '#999',
   },
 });
 

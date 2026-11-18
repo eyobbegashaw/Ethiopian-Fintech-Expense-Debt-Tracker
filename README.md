@@ -8,7 +8,7 @@ A production-ready expense and debt tracking application for the Ethiopian conte
 - ✅ Group management (Roommates, Trip, Coffee Ceremony, Iddir, Equb)
 - ✅ Debt simplification algorithm
 - ✅ Settlement tracking with local payment methods (TeleBirr, CBE Birr, Amole)
-- ✅ SMS notifications
+- ✅ In-app & push notifications
 - ✅ Real-time updates with Socket.io
 - ✅ Ethiopian cultural context support
 
@@ -18,8 +18,8 @@ A production-ready expense and debt tracking application for the Ethiopian conte
 - Node.js + Express
 - MongoDB + Mongoose
 - JWT Authentication
-- Socket.io for real-time
-- Twilio for SMS
+- Socket.io for real-time in-app updates
+- Expo Push Notifications
 
 ### Mobile
 - React Native

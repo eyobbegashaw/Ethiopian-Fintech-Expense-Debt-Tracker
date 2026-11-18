@@ -94,7 +94,7 @@ const GroupScreen = ({ route, navigation }) => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
@@ -103,25 +103,25 @@ const GroupScreen = ({ route, navigation }) => {
   const userBalance = getUserBalance();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
         {/* Group Header */}
-        <View style={styles.header}>
-          <Text style={styles.groupIcon}>{group.icon || '👥'}</Text>
-          <Text style={styles.groupName}>{group.name}</Text>
-          {group.description && (
-            <Text style={styles.groupDescription}>{group.description}</Text>
+        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.dark ? '#2C2C2C' : '#e0e0e0' }]}>
+          <Text style={styles.groupIcon}>{group?.icon || '👥'}</Text>
+          <Text style={[styles.groupName, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{group?.name}</Text>
+          {group?.description && (
+            <Text style={[styles.groupDescription, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{group.description}</Text>
           )}
           <View style={styles.headerStats}>
-            <Chip icon="account-group" style={styles.chip}>
-              {group.members.length} {i18n.t('members')}
+            <Chip icon="account-group" style={[styles.chip, { backgroundColor: theme.dark ? '#2A2A2A' : '#f0f0f0' }]}>
+              {group?.members?.length || 0} {i18n.t('members')}
             </Chip>
-            {group.category && group.category !== 'Other' && (
-              <Chip icon="tag" style={styles.chip}>
+            {group?.category && group.category !== 'Other' && (
+              <Chip icon="tag" style={[styles.chip, { backgroundColor: theme.dark ? '#2A2A2A' : '#f0f0f0' }]}>
                 {i18n.t(group.category.toLowerCase().replace(/ /g, '_'))}
               </Chip>
             )}
@@ -129,7 +129,7 @@ const GroupScreen = ({ route, navigation }) => {
         </View>
 
         {/* Balance Card */}
-        <Card style={styles.balanceCard}>
+        <Card style={[styles.balanceCard, { backgroundColor: theme.colors.surface }]}>
           <Card.Content>
             <View style={styles.balanceContent}>
               <Icon
@@ -144,7 +144,7 @@ const GroupScreen = ({ route, navigation }) => {
                 <Text style={styles.balanceAmount}>
                   {userBalance.amount > 0 ? `${userBalance.amount} ETB` : ''}
                 </Text>
-                <Text style={styles.balanceStatus}>{userBalance.text}</Text>
+                <Text style={[styles.balanceStatus, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{userBalance.text}</Text>
               </View>
             </View>
           </Card.Content>
@@ -170,12 +170,12 @@ const GroupScreen = ({ route, navigation }) => {
         </View>
 
         {/* Tabs */}
-        <View style={styles.tabsContainer}>
+        <View style={[styles.tabsContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.dark ? '#2C2C2C' : '#eee' }]}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'expenses' && styles.tabActive]}
             onPress={() => setActiveTab('expenses')}
           >
-            <Text style={[styles.tabText, activeTab === 'expenses' && styles.tabTextActive]}>
+            <Text style={[styles.tabText, { color: theme.dark ? '#AAAAAA' : '#666666' }, activeTab === 'expenses' && styles.tabTextActive]}>
               {i18n.t('expenses')}
             </Text>
           </TouchableOpacity>
@@ -183,7 +183,7 @@ const GroupScreen = ({ route, navigation }) => {
             style={[styles.tab, activeTab === 'members' && styles.tabActive]}
             onPress={() => setActiveTab('members')}
           >
-            <Text style={[styles.tabText, activeTab === 'members' && styles.tabTextActive]}>
+            <Text style={[styles.tabText, { color: theme.dark ? '#AAAAAA' : '#666666' }, activeTab === 'members' && styles.tabTextActive]}>
               {i18n.t('members')}
             </Text>
           </TouchableOpacity>

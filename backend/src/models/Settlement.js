@@ -4,17 +4,20 @@ const settlementSchema = new mongoose.Schema({
   groupId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Group',
-    required: true
+    required: true,
+    index: true
   },
   fromUser: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Payer is required']
+    required: [true, 'Payer is required'],
+    index: true
   },
   toUser: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Receiver is required']
+    required: [true, 'Receiver is required'],
+    index: true
   },
   amount: {
     type: Number,
@@ -64,12 +67,14 @@ const settlementSchema = new mongoose.Schema({
   timestamps: true
 });
 
+settlementSchema.index({ groupId: 1, createdAt: -1 });
+settlementSchema.index({ fromUser: 1, toUser: 1 });
+
 // Ensure fromUser and toUser are different
-settlementSchema.pre('save', function(next) {
-  if (this.fromUser.toString() === this.toUser.toString()) {
-    next(new Error('Cannot settle debt with yourself'));
+settlementSchema.pre('save', function() {
+  if (this.fromUser && this.toUser && this.fromUser.toString() === this.toUser.toString()) {
+    throw new Error('Cannot settle debt with yourself');
   }
-  next();
 });
 
 module.exports = mongoose.model('Settlement', settlementSchema);

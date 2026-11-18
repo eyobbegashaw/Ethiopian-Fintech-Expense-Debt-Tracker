@@ -4,8 +4,9 @@ import {
   Text,
   StyleSheet,
   Animated,
-  Dimensions,   
+  Dimensions,
   StatusBar,
+  Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import i18n from '../translations';
@@ -21,22 +22,24 @@ const SplashScreen = () => {
 
   useEffect(() => {
     // Parallel animations for a beautiful entrance
+    const isNative = Platform.OS !== 'web';
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 1000,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
         friction: 4,
         tension: 40,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }),
       Animated.timing(translateYAnim, {
         toValue: 0,
         duration: 800,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }),
       Animated.timing(progressAnim, {
         toValue: 1,
@@ -47,7 +50,7 @@ const SplashScreen = () => {
         Animated.timing(rotateAnim, {
           toValue: 1,
           duration: 2000,
-          useNativeDriver: true,
+          useNativeDriver: isNative,
         })
       ),
     ]).start();

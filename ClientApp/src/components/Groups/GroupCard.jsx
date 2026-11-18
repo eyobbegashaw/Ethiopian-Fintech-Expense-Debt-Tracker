@@ -37,23 +37,23 @@ const GroupCard = ({ group, onPress }) => {
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-      <Card style={styles.card}>
+      <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
         <Card.Content>
           <View style={styles.header}>
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, { backgroundColor: theme.dark ? '#1B381E' : '#E8F5E9' }]}>
               <Text style={styles.icon}>{group.icon || '👥'}</Text>
             </View>
             <View style={styles.groupInfo}>
-              <Text style={styles.groupName}>{group.name}</Text>
+              <Text style={[styles.groupName, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{group.name}</Text>
               <View style={styles.metaInfo}>
-                <Icon name="account-group" size={14} color="#999" />
-                <Text style={styles.memberCount}>
+                <Icon name="account-group" size={14} color={theme.dark ? '#888' : '#999'} />
+                <Text style={[styles.memberCount, { color: theme.dark ? '#888' : '#999' }]}>
                   {group.memberCount} {group.memberCount === 1 ? i18n.t('member') : i18n.t('members')}
                 </Text>
                 {group.category && group.category !== 'Other' && (
                   <>
-                    <View style={styles.dot} />
-                    <Text style={styles.category}>{i18n.t(group.category.toLowerCase().replace(/ /g, '_'))}</Text>
+                    <View style={[styles.dot, { backgroundColor: theme.dark ? '#555' : '#ccc' }]} />
+                    <Text style={[styles.category, { color: theme.dark ? '#888' : '#666' }]}>{i18n.t(group.category.toLowerCase().replace(/ /g, '_'))}</Text>
                   </>
                 )}
               </View>

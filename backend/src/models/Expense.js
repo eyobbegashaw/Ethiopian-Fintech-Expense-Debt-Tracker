@@ -4,7 +4,8 @@ const expenseSchema = new mongoose.Schema({
   groupId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Group',
-    required: [true, 'Group ID is required']
+    required: [true, 'Group ID is required'],
+    index: true
   },
   description: {
     type: String,
@@ -26,7 +27,8 @@ const expenseSchema = new mongoose.Schema({
   paidBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Payer is required']
+    required: [true, 'Payer is required'],
+    index: true
   },
   date: {
     type: Date,
@@ -85,17 +87,20 @@ const expenseSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Compound indexes for optimal queries
+expenseSchema.index({ groupId: 1, createdAt: -1 });
+expenseSchema.index({ groupId: 1, isDeleted: 1 });
+expenseSchema.index({ 'splits.userId': 1 });
+
 // Validate that split amounts sum to total amount
-expenseSchema.pre('save', function(next) {
+expenseSchema.pre('save', function() {
   if (this.splits && this.splits.length > 0) {
-    const totalShare = this.splits.reduce((sum, split) => sum + split.share, 0);
+    const totalShare = this.splits.reduce((sum, split) => sum + (Number(split.share) || 0), 0);
     
     if (Math.abs(totalShare - this.amount) > 0.01) {
-      next(new Error(`Split amounts (${totalShare}) do not sum to total amount (${this.amount})`));
+      throw new Error(`Split amounts (${totalShare}) do not sum to total amount (${this.amount})`);
     }
   }
-  
-  next();
 });
 
 // Method to mark a split as paid

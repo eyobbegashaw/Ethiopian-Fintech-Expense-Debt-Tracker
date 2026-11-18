@@ -38,10 +38,12 @@ const BalancesScreen = ({ navigation }) => {
   const loadGroups = async () => {
     try {
       const response = await groupService.getGroups();
-      setGroups(response.data);
-      calculateTotals(response.data);
+      const data = Array.isArray(response.data) ? response.data : [];
+      setGroups(data);
+      calculateTotals(data);
     } catch (error) {
       console.error('Error loading groups:', error);
+      setGroups([]);
     } finally {
       setLoading(false);
     }
@@ -51,13 +53,15 @@ const BalancesScreen = ({ navigation }) => {
     let owed = 0;
     let owes = 0;
     
-    groupsData.forEach(group => {
-      if (group.userBalance > 0) {
-        owed += group.userBalance;
-      } else if (group.userBalance < 0) {
-        owes += Math.abs(group.userBalance);
-      }
-    });
+    if (Array.isArray(groupsData)) {
+      groupsData.forEach(group => {
+        if (group.userBalance > 0) {
+          owed += group.userBalance;
+        } else if (group.userBalance < 0) {
+          owes += Math.abs(group.userBalance);
+        }
+      });
+    }
     
     setTotalOwed(owed);
     setTotalOwes(owes);
@@ -127,31 +131,31 @@ const BalancesScreen = ({ navigation }) => {
         style={styles.groupCard}
         onPress={() => navigation.navigate('Group', { groupId: group._id })}
       >
-        <Card>
+        <Card style={{ backgroundColor: theme.colors.surface }}>
           <Card.Content>
             <View style={styles.groupCardContent}>
-              <View style={styles.groupIconContainer}>
+              <View style={[styles.groupIconContainer, { backgroundColor: theme.dark ? '#1B381E' : '#E8F5E9' }]}>
                 <Text style={styles.groupIcon}>{group.icon || '👥'}</Text>
               </View>
               <View style={styles.groupBalanceInfo}>
-                <Text style={styles.groupName}>{group.name}</Text>
+                <Text style={[styles.groupName, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{group.name}</Text>
                 <View
                   style={[
                     styles.groupBalanceBadge,
                     {
-                      backgroundColor: isOwed ? '#4CAF50' : isOwes ? '#FF9800' : '#E8F5E9',
+                      backgroundColor: isOwed ? '#4CAF50' : isOwes ? '#FF9800' : (theme.dark ? '#2A2A2A' : '#E8F5E9'),
                     },
                   ]}
                 >
                   <Icon
                     name={isOwed ? 'arrow-up' : isOwes ? 'arrow-down' : 'check'}
                     size={14}
-                    color={isOwed ? '#fff' : isOwes ? '#fff' : '#666'}
+                    color={isOwed ? '#fff' : isOwes ? '#fff' : (theme.dark ? '#ccc' : '#666')}
                   />
                   <Text
                     style={[
                       styles.groupBalanceText,
-                      { color: isOwed ? '#fff' : isOwes ? '#fff' : '#666' },
+                      { color: isOwed ? '#fff' : isOwes ? '#fff' : (theme.dark ? '#ccc' : '#666') },
                     ]}
                   >
                     {isOwed
@@ -162,7 +166,7 @@ const BalancesScreen = ({ navigation }) => {
                   </Text>
                 </View>
               </View>
-              <Icon name="chevron-right" size={20} color="#ccc" />
+              <Icon name="chevron-right" size={20} color={theme.dark ? '#666' : '#ccc'} />
             </View>
           </Card.Content>
         </Card>
@@ -172,23 +176,23 @@ const BalancesScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
         {/* Overall Balance Card */}
-        <Card style={styles.overallCard}>
+        <Card style={[styles.overallCard, { backgroundColor: theme.colors.surface }]}>
           <Card.Content>
-            <Text style={styles.overallTitle}>{i18n.t('overall_balance')}</Text>
+            <Text style={[styles.overallTitle, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{i18n.t('overall_balance')}</Text>
             <View style={styles.overallBalance}>
               <Icon
                 name={getOverallBalanceIcon()}
@@ -204,7 +208,7 @@ const BalancesScreen = ({ navigation }) => {
                 {Math.abs(totalBalance)} ETB
               </Text>
             </View>
-            <Text style={styles.overallBalanceText}>
+            <Text style={[styles.overallBalanceText, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>
               {getOverallBalanceText()}
             </Text>
           </Card.Content>
@@ -212,20 +216,20 @@ const BalancesScreen = ({ navigation }) => {
 
         {/* Summary Stats */}
         <View style={styles.statsRow}>
-          <Card style={styles.statsCard}>
+          <Card style={[styles.statsCard, { backgroundColor: theme.colors.surface }]}>
             <Card.Content style={styles.statsContent}>
               <Icon name="arrow-up-bold" size={24} color="#4CAF50" />
-              <Text style={styles.statsLabel}>{i18n.t('total_owed_to_you')}</Text>
+              <Text style={[styles.statsLabel, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{i18n.t('total_owed_to_you')}</Text>
               <Text style={[styles.statsAmount, { color: '#4CAF50' }]}>
                 {totalOwed} ETB
               </Text>
             </Card.Content>
           </Card>
           
-          <Card style={styles.statsCard}>
+          <Card style={[styles.statsCard, { backgroundColor: theme.colors.surface }]}>
             <Card.Content style={styles.statsContent}>
               <Icon name="arrow-down-bold" size={24} color="#F44336" />
-              <Text style={styles.statsLabel}>{i18n.t('total_you_owe')}</Text>
+              <Text style={[styles.statsLabel, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{i18n.t('total_you_owe')}</Text>
               <Text style={[styles.statsAmount, { color: '#F44336' }]}>
                 {totalOwes} ETB
               </Text>
@@ -261,7 +265,7 @@ const BalancesScreen = ({ navigation }) => {
 
         {/* Groups Section */}
         <View style={styles.groupsSection}>
-          <Text style={styles.sectionTitle}>{i18n.t('balances_by_group')}</Text>
+          <Text style={[styles.sectionTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{i18n.t('balances_by_group')}</Text>
           {groups.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Icon name="folder-open" size={48} color="#ccc" />

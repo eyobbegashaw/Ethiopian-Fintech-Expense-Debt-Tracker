@@ -42,10 +42,12 @@ const FriendsScreen = () => {
         friendService.getFriends(),
         friendService.getPendingRequests(),
       ]);
-      setFriends(friendsRes.data);
-      setRequests(requestsRes.data);
+      setFriends(Array.isArray(friendsRes.data) ? friendsRes.data : []);
+      setRequests(Array.isArray(requestsRes.data) ? requestsRes.data : []);
     } catch (error) {
       console.error('Error loading friends data:', error);
+      setFriends([]);
+      setRequests([]);
     } finally {
       setLoading(false);
     }
@@ -116,19 +118,27 @@ const FriendsScreen = () => {
   };
 
   const renderFriend = ({ item }) => (
-    <Card style={styles.friendCard}>
+    <Card style={[styles.friendCard, { backgroundColor: theme.colors.surface }]}>
       <Card.Content>
         <View style={styles.friendContent}>
-          <Avatar.Text
-            size={50}
-            label={item.name.charAt(0)}
-            style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
-          />
+          {item.avatar ? (
+            <Avatar.Image
+              size={50}
+              source={{ uri: item.avatar }}
+              style={styles.avatar}
+            />
+          ) : (
+            <Avatar.Text
+              size={50}
+              label={item.name?.charAt(0) || '?'}
+              style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
+            />
+          )}
           <View style={styles.friendInfo}>
-            <Text style={styles.friendName}>{item.name}</Text>
-            <Text style={styles.friendPhone}>{item.phone}</Text>
+            <Text style={[styles.friendName, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{item.name}</Text>
+            <Text style={[styles.friendPhone, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{item.phone}</Text>
             <View style={styles.friendStats}>
-              <Chip icon="cash" size="small" style={styles.friendChip}>
+              <Chip icon="cash" size="small" style={[styles.friendChip, { backgroundColor: theme.dark ? '#2A2A2A' : '#f0f0f0' }]}>
                 {i18n.t('no_balance')}
               </Chip>
             </View>
@@ -142,19 +152,29 @@ const FriendsScreen = () => {
   );
 
   const renderRequest = ({ item }) => (
-    <Card style={styles.requestCard}>
+    <Card style={[styles.requestCard, { backgroundColor: theme.colors.surface }]}>
       <Card.Content>
         <View style={styles.requestContent}>
-          <Avatar.Text
-            size={50}
-            label={item.fromUser.name.charAt(0)}
-            style={[styles.avatar, { backgroundColor: '#FF9800' }]}
-          />
+          {item.fromUser?.avatar ? (
+            <Avatar.Image
+              size={50}
+              source={{ uri: item.fromUser.avatar }}
+              style={styles.avatar}
+            />
+          ) : (
+            <Avatar.Text
+              size={50}
+              label={item.fromUser?.name?.charAt(0) || '?'}
+              style={[styles.avatar, { backgroundColor: '#FF9800' }]}
+            />
+          )}
           <View style={styles.requestInfo}>
-            <Text style={styles.requestName}>{item.fromUser.name}</Text>
-            <Text style={styles.requestPhone}>{item.fromUser.phone}</Text>
+            <Text style={[styles.requestName, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{item.fromUser.name}</Text>
+            <Text style={[styles.requestPhone, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{item.fromUser.phone}</Text>
             {item.message && (
-              <Text style={styles.requestMessage}>"{item.message}"</Text>
+              <Text style={[styles.requestMessage, { color: theme.dark ? '#CCCCCC' : '#666666' }]}>
+                {`"${item.message}"`}
+              </Text>
             )}
           </View>
           <View style={styles.requestActions}>
@@ -195,24 +215,24 @@ const FriendsScreen = () => {
   const renderEmptyRequests = () => (
     <View style={styles.emptyContainer}>
       <Icon name="bell-off" size={64} color="#ccc" />
-      <Text style={styles.emptyTitle}>{i18n.t('no_requests')}</Text>
+      <Text style={[styles.emptyTitle, { color: theme.dark ? '#FFFFFF' : '#666' }]}>{i18n.t('no_requests')}</Text>
       <Text style={styles.emptyText}>{i18n.t('no_pending_requests')}</Text>
     </View>
   );
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header with Add Friend Button */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{i18n.t('friends')}</Text>
+      <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.dark ? '#2C2C2C' : '#e0e0e0' }]}>
+        <Text style={[styles.headerTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{i18n.t('friends')}</Text>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => setShowAddFriend(true)}
@@ -222,12 +242,12 @@ const FriendsScreen = () => {
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabsContainer}>
+      <View style={[styles.tabsContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.dark ? '#2C2C2C' : '#eee' }]}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'friends' && styles.tabActive]}
           onPress={() => setActiveTab('friends')}
         >
-          <Text style={[styles.tabText, activeTab === 'friends' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: theme.dark ? '#AAAAAA' : '#666666' }, activeTab === 'friends' && styles.tabTextActive]}>
             {i18n.t('friends')} ({friends.length})
           </Text>
         </TouchableOpacity>
@@ -235,7 +255,7 @@ const FriendsScreen = () => {
           style={[styles.tab, activeTab === 'requests' && styles.tabActive]}
           onPress={() => setActiveTab('requests')}
         >
-          <Text style={[styles.tabText, activeTab === 'requests' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: theme.dark ? '#AAAAAA' : '#666666' }, activeTab === 'requests' && styles.tabTextActive]}>
             {i18n.t('requests')} ({requests.length})
           </Text>
         </TouchableOpacity>
@@ -256,17 +276,24 @@ const FriendsScreen = () => {
       {/* Add Friend Modal */}
       {showAddFriend && (
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{i18n.t('add_friend')}</Text>
+              <Text style={[styles.modalTitle, { color: theme.dark ? '#FFFFFF' : '#333333' }]}>{i18n.t('add_friend')}</Text>
               <TouchableOpacity onPress={() => setShowAddFriend(false)}>
-                <Icon name="close" size={24} color="#666" />
+                <Icon name="close" size={24} color={theme.dark ? '#aaa' : '#666'} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalLabel}>{i18n.t('phone_number')}</Text>
+            <Text style={[styles.modalLabel, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{i18n.t('phone_number')}</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[
+                styles.modalInput,
+                {
+                  backgroundColor: theme.dark ? '#262626' : '#fff',
+                  color: theme.dark ? '#fff' : '#333',
+                  borderColor: theme.dark ? '#3C3C3C' : '#ddd',
+                },
+              ]}
               placeholder="0912345678"
               value={phoneNumber}
               onChangeText={setPhoneNumber}
@@ -274,9 +301,17 @@ const FriendsScreen = () => {
               placeholderTextColor="#999"
             />
 
-            <Text style={styles.modalLabel}>{i18n.t('message_optional')}</Text>
+            <Text style={[styles.modalLabel, { color: theme.dark ? '#AAAAAA' : '#666666' }]}>{i18n.t('message_optional')}</Text>
             <TextInput
-              style={[styles.modalInput, styles.messageInput]}
+              style={[
+                styles.modalInput,
+                styles.messageInput,
+                {
+                  backgroundColor: theme.dark ? '#262626' : '#fff',
+                  color: theme.dark ? '#fff' : '#333',
+                  borderColor: theme.dark ? '#3C3C3C' : '#ddd',
+                },
+              ]}
               placeholder={i18n.t('add_message')}
               value={message}
               onChangeText={setMessage}

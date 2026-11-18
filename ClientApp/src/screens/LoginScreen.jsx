@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import {   
+import React, { useState, useEffect } from 'react';
+import {
   View,
   Text,
   StyleSheet,
@@ -8,60 +8,77 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
-import { TextInput, Button, useTheme, HelperText } from 'react-native-paper';
+import { TextInput, Button, HelperText, useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../contexts/AuthContext';
-import i18n from '../translations';
+import { useLanguage } from '../contexts/LanguageContext';
+import { normalizeEthiopianPhone, isValidEthiopianPhone } from '../utils/phoneUtils';
+import LanguageToggle from '../components/Common/LanguageToggle';
 
-const LoginScreen = ({ navigation }) => {
+const LoginScreen = ({ navigation, route }) => {
   const theme = useTheme();
   const { login, loading: authLoading } = useAuth();
-  
-  const [phone, setPhone] = useState('');
+  const { t, isAmharic } = useLanguage();
+
+  const [phone, setPhone] = useState(route?.params?.phone || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [generalError, setGeneralError] = useState('');
+
+  useEffect(() => {
+    if (route?.params?.phone) {
+      setPhone(route.params.phone);
+    }
+  }, [route?.params?.phone]);
 
   const validateForm = () => {
     const newErrors = {};
-    
-    // Phone validation (Ethiopian format)
-    const phoneRegex = /^[0-9]{9,12}$/;
+
+    // Phone validation (Ethiopian 09 or 07 format)
     if (!phone) {
-      newErrors.phone = i18n.t('phone_required');
-    } else if (!phoneRegex.test(phone)) {
-      newErrors.phone = i18n.t('invalid_phone');
+      newErrors.phone = t('phone_required');
+    } else if (!isValidEthiopianPhone(phone)) {
+      newErrors.phone = t('invalid_phone');
     }
-    
+
     // Password validation
     if (!password) {
-      newErrors.password = i18n.t('password_required');
+      newErrors.password = t('password_required');
     } else if (password.length < 6) {
-      newErrors.password = i18n.t('password_min_length');
+      newErrors.password = t('password_min_length');
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleLogin = async () => {
+    setGeneralError('');
     if (!validateForm()) return;
-    
+
     try {
       setLoading(true);
-      const result = await login(phone, password);
-      
+      const normalizedPhone = normalizeEthiopianPhone(phone);
+      const result = await login(normalizedPhone, password);
+
       if (result.success) {
-        // Navigation handled by AuthContext
         console.log('Login successful');
       } else {
-        Alert.alert(i18n.t('error'), result.message || i18n.t('login_failed'));
+        const msg = result.message || t('login_failed');
+        setGeneralError(msg);
+        Alert.alert(t('error'), msg);
       }
     } catch (error) {
-      Alert.alert(i18n.t('error'), error.response?.data?.message || i18n.t('something_wrong'));
+      const msg =
+        error.response?.data?.message ||
+        (error.message?.includes('Network Error') || !error.response
+          ? t('network_error')
+          : t('something_wrong'));
+      setGeneralError(msg);
+      Alert.alert(t('error'), msg);
     } finally {
       setLoading(false);
     }
@@ -76,46 +93,88 @@ const LoginScreen = ({ navigation }) => {
   };
 
   const formatPhoneNumber = (text) => {
-    // Remove non-numeric characters
     const cleaned = text.replace(/[^0-9]/g, '');
     setPhone(cleaned);
   };
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Top Bar with Language Selector on the Right */}
+        <View style={styles.topBar}>
+          <LanguageToggle />
+        </View>
+
         {/* Logo Section */}
         <View style={styles.logoContainer}>
           <View style={styles.logoCircle}>
             <Icon name="cash-multiple" size={60} color="#fff" />
           </View>
-          <Text style={styles.appName}>{i18n.t('app_name')}</Text>
-          <Text style={styles.tagline}>{i18n.t('track_expenses_together')}</Text>
+          <Text style={[styles.appName, isAmharic && styles.amharicFont]}>
+            {t('app_name')}
+          </Text>
+          <Text style={[styles.tagline, { color: theme.dark ? '#AAAAAA' : '#666666' }, isAmharic && styles.amharicFont]}>
+            {t('track_expenses_together')}
+          </Text>
         </View>
 
         {/* Form Section */}
-        <View style={styles.formContainer}>
-          <Text style={styles.welcomeText}>{i18n.t('welcome_back')}</Text>
-          <Text style={styles.subtitleText}>{i18n.t('login_to_continue')}</Text>
+        <View style={[styles.formContainer, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.welcomeText, { color: theme.dark ? '#FFFFFF' : '#333333' }, isAmharic && styles.amharicFont]}>
+            {t('welcome_back')}
+          </Text>
+          <Text style={[styles.subtitleText, { color: theme.dark ? '#AAAAAA' : '#666666' }, isAmharic && styles.amharicFont]}>
+            {t('login_to_continue')}
+          </Text>
+
+          {/* New Account Created Recovery Code Info Banner */}
+          {route?.params?.recoveryCode ? (
+            <View
+              style={{
+                backgroundColor: theme.dark ? '#1B2E1D' : '#E8F5E9',
+                borderColor: '#4CAF50',
+                borderWidth: 1,
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 16,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <Icon name="check-circle" size={18} color="#2E7D32" />
+                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#2E7D32' }}>
+                  {isAmharic ? 'አካውንትዎ ተፈጥሯል' : 'Account Created Locally'}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 12, color: theme.dark ? '#A5D6A7' : '#2E7D32' }}>
+                {isAmharic ? 'የመልሶ ማግኛ ኮድዎ፡ ' : 'Your Recovery Code: '}
+                <Text style={{ fontWeight: 'bold', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>
+                  {route.params.recoveryCode}
+                </Text>
+              </Text>
+            </View>
+          ) : null}
 
           {/* Phone Input */}
           <View style={styles.inputWrapper}>
             <TextInput
-              label={i18n.t('phone_number')}
+              label={t('phone_number')}
               value={phone}
               onChangeText={formatPhoneNumber}
               mode="outlined"
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.colors.surface }]}
+              textColor={theme.dark ? '#FFFFFF' : '#333333'}
+              outlineColor={theme.dark ? '#666666' : '#CCCCCC'}
+              activeOutlineColor={theme.colors.primary}
               keyboardType="phone-pad"
               left={<TextInput.Icon icon="cellphone" />}
               error={!!errors.phone}
-              placeholder="0912345678"
+              placeholder="09... or 07..."
               placeholderTextColor="#999"
             />
             <HelperText type="error" visible={!!errors.phone}>
@@ -126,11 +185,14 @@ const LoginScreen = ({ navigation }) => {
           {/* Password Input */}
           <View style={styles.inputWrapper}>
             <TextInput
-              label={i18n.t('password')}
+              label={t('password')}
               value={password}
               onChangeText={setPassword}
               mode="outlined"
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.colors.surface }]}
+              textColor={theme.dark ? '#FFFFFF' : '#333333'}
+              outlineColor={theme.dark ? '#666666' : '#CCCCCC'}
+              activeOutlineColor={theme.colors.primary}
               secureTextEntry={!showPassword}
               left={<TextInput.Icon icon="lock" />}
               right={
@@ -151,10 +213,20 @@ const LoginScreen = ({ navigation }) => {
             style={styles.forgotPasswordContainer}
             onPress={handleForgotPassword}
           >
-            <Text style={styles.forgotPasswordText}>
-              {i18n.t('forgot_password')}
+            <Text style={[styles.forgotPasswordText, isAmharic && styles.amharicFont]}>
+              {t('forgot_password')}
             </Text>
           </TouchableOpacity>
+
+          {/* Status / Error Banner */}
+          {!!generalError && (
+            <View style={styles.errorBanner}>
+              <Icon name="alert-circle" size={20} color="#D32F2F" />
+              <Text style={[styles.errorBannerText, isAmharic && styles.amharicFont]}>
+                {generalError}
+              </Text>
+            </View>
+          )}
 
           {/* Login Button */}
           <Button
@@ -166,47 +238,38 @@ const LoginScreen = ({ navigation }) => {
             contentStyle={styles.buttonContent}
             icon="login"
           >
-            {i18n.t('login')}
+            {t('login')}
           </Button>
 
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={styles.divider} />
-            <Text style={styles.dividerText}>{i18n.t('or')}</Text>
-            <View style={styles.divider} />
-          </View>
-
-          {/* Demo Credentials (Development Only) */}
-          {__DEV__ && (
-            <View style={styles.demoContainer}>
-              <Text style={styles.demoTitle}>Demo Credentials (Dev Only)</Text>
-              <View style={styles.demoCredentials}>
-                <TouchableOpacity
-                  style={styles.demoButton}
-                  onPress={() => {
-                    setPhone('0912345678');
-                    setPassword('123456');
-                  }}
-                >
-                  <Icon name="account" size={16} color="#2E7D32" />
-                  <Text style={styles.demoText}>Demo User</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+          {/* Quick Demo Credentials Autofill */}
+          <TouchableOpacity
+            style={styles.demoBox}
+            onPress={() => {
+              setPhone('0911223344');
+              setPassword('password123');
+            }}
+          >
+            <Text style={[styles.demoText, isAmharic && styles.amharicFont]}>
+              💡 {t('demo_credentials')}: 0911223344 / password123
+            </Text>
+          </TouchableOpacity>
 
           {/* Register Link */}
           <View style={styles.registerContainer}>
-            <Text style={styles.registerText}>{i18n.t('no_account')}</Text>
+            <Text style={[styles.registerText, isAmharic && styles.amharicFont]}>
+              {t('no_account')}
+            </Text>
             <TouchableOpacity onPress={handleRegister}>
-              <Text style={styles.registerLink}>{i18n.t('register')}</Text>
+              <Text style={[styles.registerLink, isAmharic && styles.amharicFont]}>
+                {t('register')}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Version Info */}
-        <Text style={styles.versionText}>
-          {i18n.t('version')} 1.0.0
+        <Text style={[styles.versionText, isAmharic && styles.amharicFont]}>
+          {t('version')} 1.0.0
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -222,76 +285,85 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 20,
     paddingBottom: 30,
+    paddingTop: Platform.OS === 'ios' ? 40 : 10,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 12,
+    width: '100%',
   },
   logoContainer: {
     alignItems: 'center',
-    marginTop: Platform.OS === 'ios' ? 60 : 40,
-    marginBottom: 40,
+    marginBottom: 24,
   },
   logoCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: '#2E7D32',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    marginBottom: 16,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
+      },
+      default: {
+        elevation: 4,
+      },
+    }),
   },
   appName: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#2E7D32',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   tagline: {
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
   },
+  amharicFont: {
+    fontFamily: 'Noto Serif Ethiopic, "material-community", "Material Design Icons", sans-serif',
+  },
   formContainer: {
-    backgroundColor: '#fff',
     borderRadius: 20,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+      },
+      default: {
+        elevation: 3,
+      },
+    }),
   },
   welcomeText: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
-    textAlign: 'center',
+    marginBottom: 6,
   },
   subtitleText: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 24,
-    textAlign: 'center',
+    marginBottom: 20,
   },
   inputWrapper: {
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  input: {
-    backgroundColor: '#fff',
-    fontSize: 16,
-  },
+  input: {},
   forgotPasswordContainer: {
-    alignItems: 'flex-end',
-    marginTop: 8,
-    marginBottom: 24,
+    alignSelf: 'flex-end',
+    marginBottom: 20,
   },
   forgotPasswordText: {
     color: '#2E7D32',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   loginButton: {
     backgroundColor: '#2E7D32',
@@ -301,71 +373,56 @@ const styles = StyleSheet.create({
   buttonContent: {
     paddingVertical: 8,
   },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e0e0e0',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    color: '#999',
-    fontSize: 12,
-  },
-  demoContainer: {
-    backgroundColor: '#FFF8E1',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 20,
-  },
-  demoTitle: {
-    fontSize: 12,
-    color: '#FF8F00',
-    fontWeight: '600',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  demoCredentials: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  demoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  demoBox: {
+    marginBottom: 16,
+    padding: 10,
     borderRadius: 8,
-    gap: 8,
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    alignItems: 'center',
   },
   demoText: {
     color: '#2E7D32',
     fontSize: 12,
+    fontWeight: '600',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    borderColor: '#FFCDD2',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  errorBannerText: {
+    color: '#D32F2F',
+    fontSize: 13,
     fontWeight: '500',
+    flex: 1,
   },
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
   },
   registerText: {
-    fontSize: 14,
     color: '#666',
+    fontSize: 14,
   },
   registerLink: {
-    fontSize: 14,
     color: '#2E7D32',
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 6,
   },
   versionText: {
     textAlign: 'center',
-    fontSize: 12,
     color: '#999',
+    fontSize: 12,
     marginTop: 20,
   },
 });
