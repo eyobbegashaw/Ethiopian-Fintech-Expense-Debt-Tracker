@@ -14,6 +14,13 @@
         "buildType": "apk"
       }
     },
+    "preview-arm": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a"
+      }
+    },
     "production": {
       "android": {
         "buildType": "apk"

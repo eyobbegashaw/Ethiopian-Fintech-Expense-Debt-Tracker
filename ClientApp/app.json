@@ -50,7 +50,8 @@
       "expo-secure-store",
       "@react-native-community/datetimepicker",
       "expo-localization",
-      "expo-sqlite"
+      "expo-sqlite",
+      "./plugins/withAndroidSizeOptimization.js"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -62,9 +63,8 @@
         "sitemap": false
       },
       "eas": {
-        "projectId": "44802c96-15f5-42e3-b7d8-03f0506ee52d"
+        "projectId": "b73f3fb9-fa76-4072-a20b-ce9b80ae71f3"
       }
-    },
-    "owner": "abyata"
+    }
   }
 }
